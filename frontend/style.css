@@ -1,0 +1,552 @@
+/* ── Garden Swap — Style ────────────────────────────────────── */
+
+:root {
+    --green-dark: #1b4332;
+    --green-mid: #2d6a4f;
+    --green-light: #40916c;
+    --green-pale: #95d5b2;
+    --green-faint: #d8f3dc;
+    --blue-tag: #0077b6;
+    --blue-light: #caf0f8;
+    --orange-warn: #e76f51;
+    --bg: #f8faf8;
+    --card-bg: #ffffff;
+    --text: #1b1b1b;
+    --text-muted: #6c757d;
+    --radius: 12px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 80px;
+}
+
+/* ── Top Bar ───────────────────────────────────────────────── */
+
+#topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--green-dark);
+    color: white;
+}
+
+.topbar-left .logo {
+    font-size: 1.2rem;
+    white-space: nowrap;
+}
+
+.topbar-center {
+    flex: 1;
+}
+
+#search-input {
+    width: 100%;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    background: rgba(255,255,255,0.15);
+    color: white;
+}
+
+#search-input::placeholder { color: rgba(255,255,255,0.6); }
+#search-input:focus { outline: none; background: rgba(255,255,255,0.25); }
+
+.topbar-right {
+    display: flex;
+    gap: 8px;
+}
+
+.topbar-right button {
+    padding: 6px 12px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    background: transparent;
+    color: white;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.topbar-right button:hover { background: rgba(255,255,255,0.1); }
+
+/* ── Navigation ────────────────────────────────────────────── */
+
+#main-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+    padding: 8px 0;
+}
+
+.nav-btn {
+    flex: 1;
+    border: none;
+    background: none;
+    padding: 8px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.nav-btn.active {
+    color: var(--green-mid);
+    font-weight: 600;
+}
+
+/* ── Feed Status & Filters ─────────────────────────────────── */
+
+.feed-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.filter-bar {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 12px;
+    flex-wrap: wrap;
+}
+
+.filter-bar select, .filter-bar input {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    background: white;
+}
+
+.filter-bar button {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+#filter-apply {
+    background: var(--green-mid);
+    color: white;
+}
+
+#filter-clear {
+    background: #eee;
+    color: #666;
+}
+
+/* ── Plant Grid ────────────────────────────────────────────── */
+
+.plant-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 0 16px 16px;
+}
+
+.plant-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.plant-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+.plant-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.plant-card-info {
+    padding: 12px 14px;
+}
+
+.plant-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.plant-card-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-swap {
+    background: var(--green-faint);
+    color: var(--green-dark);
+}
+
+.badge-free {
+    background: var(--blue-light);
+    color: var(--blue-tag);
+}
+
+.badge-type {
+    background: #f0f0f0;
+    color: #555;
+}
+
+.badge-condition {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.plant-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.plant-card-distance {
+    font-weight: 500;
+}
+
+.plant-card-rating {
+    color: #f0ad4e;
+}
+
+/* ── Detail Modal ──────────────────────────────────────────── */
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.6);
+    padding: 16px;
+}
+
+.modal.hidden { display: none; }
+
+.modal-content {
+    background: white;
+    border-radius: var(--radius);
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    border: none;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.detail-content img {
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+}
+
+.detail-info {
+    padding: 16px 20px 20px;
+}
+
+.detail-info h2 {
+    font-size: 1.3rem;
+    margin-bottom: 10px;
+}
+
+.detail-badges {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.detail-desc {
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.detail-meta, .detail-distance {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+/* ── Auth Modal ────────────────────────────────────────────── */
+
+.auth-content {
+    padding: 24px;
+}
+
+.auth-content h2 {
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.auth-content form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.auth-content input {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+.auth-content input:focus {
+    outline: none;
+    border-color: var(--green-light);
+}
+
+.auth-toggle {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.auth-toggle a {
+    color: var(--green-mid);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+/* ── New Listing Form ──────────────────────────────────────── */
+
+.listing-form-content {
+    padding: 24px;
+}
+
+.listing-form-content h2 {
+    margin-bottom: 16px;
+}
+
+.form-group {
+    margin-bottom: 14px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--green-light);
+}
+
+.radio-group {
+    display: flex;
+    gap: 20px;
+    padding: 8px 0;
+}
+
+.radio-group label {
+    font-weight: normal;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.form-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.image-preview {
+    margin-top: 8px;
+}
+
+.image-preview img {
+    max-height: 120px;
+    border-radius: 8px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.btn:hover { opacity: 0.9; }
+
+.btn-primary {
+    background: var(--green-mid);
+    color: white;
+}
+
+.btn-danger {
+    background: var(--orange-warn);
+    color: white;
+}
+
+.btn-full {
+    width: 100%;
+}
+
+/* ── FAB ───────────────────────────────────────────────────── */
+
+.fab {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--green-mid);
+    color: white;
+    font-size: 2rem;
+    border: none;
+    box-shadow: 0 4px 12px rgba(45,106,79,0.4);
+    cursor: pointer;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fab:hover {
+    background: var(--green-dark);
+    transform: scale(1.05);
+}
+
+.fab.hidden { display: none; }
+
+/* ── Profile View ──────────────────────────────────────────── */
+
+#profile-view {
+    padding: 16px;
+}
+
+.profile-header {
+    text-align: center;
+    padding: 20px;
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+}
+
+.profile-header h2 {
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+}
+
+.profile-header .profile-meta {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.profile-listings {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+}
+
+/* ── Empty State ───────────────────────────────────────────── */
+
+.empty-state {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--text-muted);
+}
+
+.empty-state p:first-child {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+}
+
+.hidden { display: none !important; }
+
+/* ── Responsive ────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+    .plant-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #topbar {
+        flex-wrap: wrap;
+    }
+
+    .topbar-center {
+        order: 3;
+        flex-basis: 100%;
+        margin-top: 8px;
+    }
+}

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garden Swap — Plants Near You</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#2d6a4f">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪴</text></svg>">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- ── Top Bar ──────────────────────────────────────────── -->
+    <header id="topbar">
+        <div class="topbar-left">
+            <h1 class="logo">🪴 Garden Swap</h1>
+        </div>
+        <div class="topbar-center">
+            <input type="text" id="search-input" placeholder="Search plants near you...">
+        </div>
+        <div class="topbar-right">
+            <button id="location-btn" title="Update location">📍</button>
+            <button id="auth-btn">Sign In</button>
+        </div>
+    </header>
+
+    <!-- ── Navigation ───────────────────────────────────────── -->
+    <nav id="main-nav">
+        <button class="nav-btn active" data-view="feed">🌱 Swap</button>
+        <button class="nav-btn" data-view="profile">👤 Profile</button>
+    </nav>
+
+    <!-- ── Main Feed ────────────────────────────────────────── -->
+    <main id="feed-view">
+        <div class="feed-status">
+            <span id="location-status">📍 Getting your location...</span>
+            <span id="listing-count"></span>
+        </div>
+        <div id="filter-bar" class="filter-bar">
+            <select id="filter-type">
+                <option value="">All Types</option>
+                <option value="Houseplant">Houseplant</option>
+                <option value="Succulent">Succulent</option>
+                <option value="Cutting">Cutting</option>
+                <option value="Seed">Seed</option>
+                <option value="Vegetable">Vegetable</option>
+                <option value="Herb">Herb</option>
+            </select>
+            <select id="filter-status">
+                <option value="">All Status</option>
+                <option value="swap">Swap</option>
+                <option value="free">Free</option>
+            </select>
+            <select id="filter-radius">
+                <option value="5">5 mi</option>
+                <option value="10" selected>10 mi</option>
+                <option value="25">25 mi</option>
+                <option value="50">50 mi</option>
+            </select>
+            <button id="filter-apply" onclick="applyFilters()">Filter</button>
+            <button id="filter-clear" onclick="clearFilters()">✕</button>
+        </div>
+        <div id="plant-grid" class="plant-grid"></div>
+        <div id="empty-state" class="empty-state hidden">
+            <p>🌱 No plants found nearby.</p>
+            <p>Be the first to list one!</p>
+        </div>
+    </main>
+
+    <!-- ── Profile View ─────────────────────────────────────── -->
+    <section id="profile-view" class="hidden">
+        <div id="profile-content"></div>
+    </section>
+
+    <!-- ── Listing Detail Modal ─────────────────────────────── -->
+    <div id="detail-modal" class="modal hidden">
+        <div class="modal-content detail-content">
+            <button class="modal-close" onclick="closeModal('detail-modal')">&times;</button>
+            <img id="detail-image" src="" alt="">
+            <div class="detail-info">
+                <h2 id="detail-title"></h2>
+                <div class="detail-badges">
+                    <span id="detail-status-badge" class="badge"></span>
+                    <span id="detail-type-badge" class="badge badge-type"></span>
+                    <span id="detail-condition-badge" class="badge badge-condition"></span>
+                </div>
+                <p class="detail-desc" id="detail-desc"></p>
+                <p class="detail-meta" id="detail-meta"></p>
+                <p class="detail-distance" id="detail-distance"></p>
+                <div id="detail-actions" class="hidden" style="margin-top:12px;">
+                    <button id="detail-delete-btn" onclick="deleteListing()" class="btn btn-danger">🗑️ Delete Listing</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Auth Modal ───────────────────────────────────────── -->
+    <div id="auth-modal" class="modal hidden">
+        <div class="modal-content auth-content">
+            <button class="modal-close" onclick="closeModal('auth-modal')">&times;</button>
+            <h2 id="auth-title">Sign In</h2>
+            <form id="auth-form">
+                <div id="signup-fields" class="hidden">
+                    <input type="text" id="auth-username" placeholder="Username">
+                    <input type="text" id="auth-displayname" placeholder="Display Name">
+                    <input type="text" id="auth-zipcode" placeholder="Zip Code (required)" required>
+                </div>
+                <input type="email" id="auth-email" placeholder="Email" required>
+                <input type="password" id="auth-password" placeholder="Password" required>
+                <button type="submit" class="btn btn-primary" id="auth-submit">Sign In</button>
+            </form>
+            <p class="auth-toggle">
+                <span id="auth-toggle-text">Don't have an account?</span>
+                <a href="#" id="auth-toggle-link" onclick="toggleAuthMode(event)">Sign Up</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- ── New Listing Modal ────────────────────────────────── -->
+    <div id="new-listing-modal" class="modal hidden">
+        <div class="modal-content listing-form-content">
+            <button class="modal-close" onclick="closeModal('new-listing-modal')">&times;</button>
+            <h2>🌱 List Your Plant</h2>
+            <form id="listing-form">
+                <div class="form-group">
+                    <label>Photos (required)</label>
+                    <input type="file" id="listing-image" accept="image/*" required>
+                    <div id="listing-image-preview" class="image-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label>Plant Name</label>
+                    <input type="text" id="listing-title" placeholder="e.g. Monstera Deliciosa" required>
+                </div>
+                <div class="form-group">
+                    <label>Plant Type</label>
+                    <select id="listing-type" required>
+                        <option value="">Select type...</option>
+                        <option value="Houseplant">Houseplant</option>
+                        <option value="Succulent">Succulent</option>
+                        <option value="Cutting">Cutting</option>
+                        <option value="Seed">Seed</option>
+                        <option value="Vegetable">Vegetable</option>
+                        <option value="Herb">Herb</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Condition</label>
+                    <select id="listing-condition" required>
+                        <option value="">Select condition...</option>
+                        <option value="Healthy">Healthy / Pest-Free</option>
+                        <option value="Needs TLC">Needs TLC</option>
+                        <option value="Fresh Cutting">Fresh Cutting</option>
+                        <option value="Seed Packet">Seed Packet</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="listing-status" value="swap" checked> 🔄 Swap</label>
+                        <label><input type="radio" name="listing-status" value="free"> 🎁 Free / Giveaway</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description (care info, swap preferences)</label>
+                    <textarea id="listing-description" rows="3" placeholder="What are you looking for in exchange? Any care tips?"></textarea>
+                </div>
+                <div class="form-group">
+                    <p class="form-hint" id="listing-location-hint">📍 Location: Loading...</p>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Publish Listing</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── FAB (New Listing) ────────────────────────────────── -->
+    <button id="fab" class="fab hidden" onclick="openNewListing()">+</button>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
