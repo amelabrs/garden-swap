@@ -55,13 +55,53 @@ if DATABASE_URL:
                 lat REAL NOT NULL,
                 lng REAL NOT NULL,
                 is_active INTEGER DEFAULT 1,
+                swap_status TEXT DEFAULT 'available',
                 created_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS swaps (
+                id SERIAL PRIMARY KEY,
+                listing_id INTEGER NOT NULL REFERENCES listings(id),
+                requester_id INTEGER NOT NULL REFERENCES users(id),
+                lister_id INTEGER NOT NULL REFERENCES users(id),
+                offered_listing_id INTEGER REFERENCES listings(id),
+                swap_type TEXT NOT NULL DEFAULT 'trade',
+                state TEXT NOT NULL DEFAULT 'pending',
+                lister_confirmed INTEGER DEFAULT 0,
+                requester_confirmed INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                swap_id INTEGER NOT NULL REFERENCES swaps(id),
+                sender_id INTEGER NOT NULL REFERENCES users(id),
+                body TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS ratings (
+                id SERIAL PRIMARY KEY,
+                swap_id INTEGER NOT NULL REFERENCES swaps(id),
+                rater_id INTEGER NOT NULL REFERENCES users(id),
+                rated_id INTEGER NOT NULL REFERENCES users(id),
+                score INTEGER NOT NULL,
+                comment TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(swap_id, rater_id)
             );
 
             CREATE INDEX IF NOT EXISTS idx_listings_user ON listings(user_id);
             CREATE INDEX IF NOT EXISTS idx_listings_active ON listings(is_active);
             CREATE INDEX IF NOT EXISTS idx_listings_type ON listings(plant_type);
             CREATE INDEX IF NOT EXISTS idx_listings_status ON listings(status);
+            CREATE INDEX IF NOT EXISTS idx_swaps_listing ON swaps(listing_id);
+            CREATE INDEX IF NOT EXISTS idx_swaps_requester ON swaps(requester_id);
+            CREATE INDEX IF NOT EXISTS idx_swaps_lister ON swaps(lister_id);
+            CREATE INDEX IF NOT EXISTS idx_swaps_state ON swaps(state);
+            CREATE INDEX IF NOT EXISTS idx_messages_swap ON messages(swap_id);
+            CREATE INDEX IF NOT EXISTS idx_ratings_swap ON ratings(swap_id);
         """)
         conn.commit()
         conn.close()
@@ -110,14 +150,63 @@ else:
                 lat REAL NOT NULL,
                 lng REAL NOT NULL,
                 is_active INTEGER DEFAULT 1,
+                swap_status TEXT DEFAULT 'available',
                 created_at TEXT DEFAULT (datetime('now')),
                 FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS swaps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                listing_id INTEGER NOT NULL,
+                requester_id INTEGER NOT NULL,
+                lister_id INTEGER NOT NULL,
+                offered_listing_id INTEGER,
+                swap_type TEXT NOT NULL DEFAULT 'trade',
+                state TEXT NOT NULL DEFAULT 'pending',
+                lister_confirmed INTEGER DEFAULT 0,
+                requester_confirmed INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (listing_id) REFERENCES listings(id),
+                FOREIGN KEY (requester_id) REFERENCES users(id),
+                FOREIGN KEY (lister_id) REFERENCES users(id),
+                FOREIGN KEY (offered_listing_id) REFERENCES listings(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                swap_id INTEGER NOT NULL,
+                sender_id INTEGER NOT NULL,
+                body TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (swap_id) REFERENCES swaps(id),
+                FOREIGN KEY (sender_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS ratings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                swap_id INTEGER NOT NULL,
+                rater_id INTEGER NOT NULL,
+                rated_id INTEGER NOT NULL,
+                score INTEGER NOT NULL,
+                comment TEXT DEFAULT '',
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (swap_id) REFERENCES swaps(id),
+                FOREIGN KEY (rater_id) REFERENCES users(id),
+                FOREIGN KEY (rated_id) REFERENCES users(id),
+                UNIQUE(swap_id, rater_id)
             );
 
             CREATE INDEX IF NOT EXISTS idx_listings_user ON listings(user_id);
             CREATE INDEX IF NOT EXISTS idx_listings_active ON listings(is_active);
             CREATE INDEX IF NOT EXISTS idx_listings_type ON listings(plant_type);
             CREATE INDEX IF NOT EXISTS idx_listings_status ON listings(status);
+            CREATE INDEX IF NOT EXISTS idx_swaps_listing ON swaps(listing_id);
+            CREATE INDEX IF NOT EXISTS idx_swaps_requester ON swaps(requester_id);
+            CREATE INDEX IF NOT EXISTS idx_swaps_lister ON swaps(lister_id);
+            CREATE INDEX IF NOT EXISTS idx_swaps_state ON swaps(state);
+            CREATE INDEX IF NOT EXISTS idx_messages_swap ON messages(swap_id);
+            CREATE INDEX IF NOT EXISTS idx_ratings_swap ON ratings(swap_id);
         """)
         conn.close()
 

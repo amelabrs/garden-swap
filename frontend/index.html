@@ -27,6 +27,7 @@
     <!-- ── Navigation ───────────────────────────────────────── -->
     <nav id="main-nav">
         <button class="nav-btn active" data-view="feed">🌱 Swap</button>
+        <button class="nav-btn" data-view="chats">💬 Chats</button>
         <button class="nav-btn" data-view="profile">👤 Profile</button>
     </nav>
 
@@ -87,6 +88,9 @@
                 <p class="detail-desc" id="detail-desc"></p>
                 <p class="detail-meta" id="detail-meta"></p>
                 <p class="detail-distance" id="detail-distance"></p>
+                <div id="detail-swap-btn-area" style="margin-top:12px;">
+                    <button id="detail-request-swap-btn" onclick="openSwapRequest()" class="btn btn-primary">🔄 Request Swap</button>
+                </div>
                 <div id="detail-actions" class="hidden" style="margin-top:12px;">
                     <button id="detail-delete-btn" onclick="deleteListing()" class="btn btn-danger">🗑️ Delete Listing</button>
                 </div>
@@ -168,6 +172,86 @@
                     <p class="form-hint" id="listing-location-hint">📍 Location: Loading...</p>
                 </div>
                 <button type="submit" class="btn btn-primary btn-full">Publish Listing</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Chats View ─────────────────────────────────────────── -->
+    <section id="chats-view" class="hidden">
+        <div class="chats-header"><h2>💬 Your Swaps</h2></div>
+        <div id="chats-list"></div>
+        <div id="chats-empty" class="empty-state hidden">
+            <p>No swap conversations yet.</p>
+            <p>Request a swap to start chatting!</p>
+        </div>
+    </section>
+
+    <!-- ── Swap Request Modal ───────────────────────────────── -->
+    <div id="swap-request-modal" class="modal hidden">
+        <div class="modal-content listing-form-content">
+            <button class="modal-close" onclick="closeModal('swap-request-modal')">&times;</button>
+            <h2>🔄 Request a Swap</h2>
+            <div id="swap-request-plant" class="swap-request-plant"></div>
+            <form id="swap-request-form">
+                <div class="form-group">
+                    <label>What would you like to offer?</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="swap-offer-type" value="trade" checked onchange="toggleOfferSelect()"> 🌿 Offer one of my plants</label>
+                        <label><input type="radio" name="swap-offer-type" value="giveaway" onchange="toggleOfferSelect()"> 🎁 Request as giveaway</label>
+                    </div>
+                </div>
+                <div class="form-group" id="offer-select-group">
+                    <label>Select your plant to offer</label>
+                    <select id="swap-offer-listing">
+                        <option value="">Loading your plants...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Message to the lister (optional, max 250 chars)</label>
+                    <textarea id="swap-request-message" rows="2" maxlength="250" placeholder="Hi! I love your plant..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Send Request & Open Chat</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Chat Modal ───────────────────────────────────────── -->
+    <div id="chat-modal" class="modal hidden">
+        <div class="modal-content chat-content">
+            <button class="modal-close" onclick="closeModal('chat-modal')">&times;</button>
+            <div id="chat-header" class="chat-header"></div>
+            <div id="chat-messages" class="chat-messages"></div>
+            <div id="chat-actions" class="chat-actions"></div>
+            <div id="chat-input-area" class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Type a message..." maxlength="500">
+                <button onclick="sendChatMessage()" class="btn btn-primary">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Rating Modal ─────────────────────────────────────── -->
+    <div id="rating-modal" class="modal hidden">
+        <div class="modal-content auth-content">
+            <button class="modal-close" onclick="closeModal('rating-modal')">&times;</button>
+            <h2>⭐ Rate this Swap</h2>
+            <p id="rating-prompt" style="margin-bottom:12px;color:#666;"></p>
+            <form id="rating-form">
+                <div class="form-group">
+                    <label>Rating</label>
+                    <div class="star-rating" id="star-rating">
+                        <button type="button" class="star-btn" data-score="1" onclick="setRating(1)">⭐</button>
+                        <button type="button" class="star-btn" data-score="2" onclick="setRating(2)">⭐</button>
+                        <button type="button" class="star-btn" data-score="3" onclick="setRating(3)">⭐</button>
+                        <button type="button" class="star-btn" data-score="4" onclick="setRating(4)">⭐</button>
+                        <button type="button" class="star-btn" data-score="5" onclick="setRating(5)">⭐</button>
+                    </div>
+                    <p id="rating-value" style="font-size:0.9rem;color:#666;margin-top:4px;">Select 1-5 stars</p>
+                </div>
+                <div class="form-group">
+                    <label>Comment (optional)</label>
+                    <textarea id="rating-comment" rows="2" maxlength="200" placeholder="How was the swap?"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Submit Rating</button>
             </form>
         </div>
     </div>

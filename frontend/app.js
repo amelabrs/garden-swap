@@ -1,5 +1,5 @@
 /**
- * Garden Swap — Frontend App (Stage 1: The Swap Feed)
+ * Garden Swap — Frontend App (Stage 2: The Swap)
  */
 
 // ── State ──────────────────────────────────────────────────────────────
@@ -10,6 +10,8 @@ let userLat = 0;
 let userLng = 0;
 let listings = [];
 let currentDetailListing = null;
+let currentSwapId = null;
+let selectedRating = 0;
 let authMode = 'login'; // 'login' or 'signup'
 
 const API = '';
@@ -59,6 +61,17 @@ function setupEventListeners() {
             if (e.target === modal) closeModal(modal.id);
         });
     });
+
+    // Swap request form
+    document.getElementById('swap-request-form').addEventListener('submit', handleSwapRequest);
+
+    // Chat input enter key
+    document.getElementById('chat-input').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') sendChatMessage();
+    });
+
+    // Rating form
+    document.getElementById('rating-form').addEventListener('submit', handleRating);
 }
 
 // ── Location ───────────────────────────────────────────────────────────
@@ -197,10 +210,18 @@ async function openDetail(id) {
 
         // Show delete button if it's the current user's listing
         const actions = document.getElementById('detail-actions');
+        const swapBtnArea = document.getElementById('detail-swap-btn-area');
         if (currentUser && listing.user_id === currentUser.user_id) {
             actions.classList.remove('hidden');
+            swapBtnArea.classList.add('hidden');
         } else {
             actions.classList.add('hidden');
+            // Show swap button only if listing is available and user is logged in
+            if (currentUser && listing.swap_status === 'available') {
+                swapBtnArea.classList.remove('hidden');
+            } else {
+                swapBtnArea.classList.add('hidden');
+            }
         }
 
         openModal('detail-modal');
@@ -451,6 +472,7 @@ function switchView(view) {
 
     document.getElementById('feed-view').classList.toggle('hidden', view !== 'feed');
     document.getElementById('profile-view').classList.toggle('hidden', view !== 'profile');
+    document.getElementById('chats-view').classList.toggle('hidden', view !== 'chats');
 
     if (view === 'profile') {
         if (!currentUser) {
@@ -459,6 +481,13 @@ function switchView(view) {
             return;
         }
         loadProfile();
+    } else if (view === 'chats') {
+        if (!currentUser) {
+            openModal('auth-modal');
+            switchView('feed');
+            return;
+        }
+        loadChats();
     }
 }
 
@@ -490,4 +519,331 @@ function haversine(lat1, lng1, lat2, lng2) {
               Math.sin(dLng/2) * Math.sin(dLng/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
+}
+
+// ── Swap Request ───────────────────────────────────────────────────────
+
+async function openSwapRequest() {
+    if (!currentUser || !currentDetailListing) return;
+
+    // Load user's own listings to offer
+    try {
+        const res = await fetch(`${API}/api/profile/${currentUser.username}`);
+        const profile = await res.json();
+        const select = document.getElementById('swap-offer-listing');
+        select.innerHTML = '<option value="">Select a plant to offer…</option>' +
+            profile.listings
+                .filter(l => l.is_active && l.id !== currentDetailListing.id)
+                .map(l => `<option value="${l.id}">${escapeHtml(l.title)}</option>`)
+                .join('');
+    } catch (err) {
+        console.error('Failed to load user listings for swap offer:', err);
+    }
+
+    document.getElementById('swap-request-plant').innerHTML =
+        `<strong>${escapeHtml(currentDetailListing.title)}</strong> — ${escapeHtml(currentDetailListing.display_name)}`;
+    document.getElementById('swap-request-message').value = '';
+    document.querySelector('input[name="swap-offer-type"][value="trade"]').checked = true;
+    toggleOfferSelect();
+    closeModal('detail-modal');
+    openModal('swap-request-modal');
+}
+
+function toggleOfferSelect() {
+    const offerType = document.querySelector('input[name="swap-offer-type"]:checked').value;
+    const selectGroup = document.getElementById('offer-select-group');
+    if (offerType === 'trade') {
+        selectGroup.classList.remove('hidden');
+    } else {
+        selectGroup.classList.add('hidden');
+    }
+}
+
+async function handleSwapRequest(e) {
+    e.preventDefault();
+
+    const swapType = document.querySelector('input[name="swap-offer-type"]:checked').value;
+    const offeredListingId = document.getElementById('swap-offer-listing').value;
+    const message = document.getElementById('swap-request-message').value.trim();
+
+    if (swapType === 'trade' && !offeredListingId) {
+        alert('Please select a plant to offer');
+        return;
+    }
+
+    const body = {
+        listing_id: currentDetailListing.id,
+        swap_type: swapType,
+        message: message || undefined
+    };
+    if (swapType === 'trade' && offeredListingId) {
+        body.offered_listing_id = parseInt(offeredListingId);
+    }
+
+    try {
+        const res = await fetch(`${API}/api/swaps`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.detail || 'Failed to send swap request'); return; }
+
+        closeModal('swap-request-modal');
+        alert('Swap request sent! Check your Chats tab.');
+        switchView('chats');
+    } catch (err) {
+        alert('Failed to send swap request');
+    }
+}
+
+// ── Chats / Swaps List ─────────────────────────────────────────────────
+
+async function loadChats() {
+    const container = document.getElementById('chats-list');
+    container.innerHTML = '<p style="text-align:center;padding:20px;">Loading…</p>';
+
+    try {
+        const res = await fetch(`${API}/api/swaps`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const swaps = await res.json();
+
+        if (swaps.length === 0) {
+            container.innerHTML = '<p style="text-align:center;padding:40px;color:var(--text-secondary);">No swap conversations yet. Request a swap from a plant listing!</p>';
+            return;
+        }
+
+        container.innerHTML = swaps.map(s => {
+            const otherName = s.lister_id === currentUser.user_id ? s.requester_name : s.lister_name;
+            const stateClass = s.state;
+            const stateLabel = s.state.charAt(0).toUpperCase() + s.state.slice(1);
+            const lastMsg = s.last_message ? s.last_message.body : '';
+            return `
+                <div class="chat-card" onclick="openChat(${s.id})">
+                    <div class="chat-content">
+                        <div class="chat-card-header">
+                            <strong>${escapeHtml(s.listing_title)}</strong>
+                            <span class="badge badge-state-${stateClass}">${stateLabel}</span>
+                        </div>
+                        <div class="chat-card-meta">
+                            with ${escapeHtml(otherName)} • ${s.swap_type === 'trade' ? '🔄 Swap' : '🎁 Free'}
+                        </div>
+                        ${lastMsg ? `<div class="chat-card-preview">${escapeHtml(lastMsg)}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = '<p style="text-align:center;color:red;">Failed to load conversations.</p>';
+    }
+}
+
+// ── Chat Modal ─────────────────────────────────────────────────────────
+
+async function openChat(swapId) {
+    currentSwapId = swapId;
+
+    try {
+        const res = await fetch(`${API}/api/swaps/${swapId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const swap = await res.json();
+
+        // Header
+        const otherName = swap.lister_id === currentUser.user_id ? swap.requester_name : swap.lister_name;
+        document.getElementById('chat-header').innerHTML =
+            `<strong>${escapeHtml(swap.listing_title)}</strong>
+             <span style="font-size:0.85rem;color:#666;"> with ${escapeHtml(otherName)} • ${swap.swap_type === 'trade' ? '🔄 Swap' : '🎁 Free'} • ${swap.state}</span>`;
+
+        // Messages
+        const messagesEl = document.getElementById('chat-messages');
+        if (swap.messages && swap.messages.length > 0) {
+            messagesEl.innerHTML = swap.messages.map(m => {
+                const isMine = m.sender_id === currentUser.user_id;
+                return `<div class="msg-bubble ${isMine ? 'mine' : 'theirs'}">
+                    ${!isMine ? `<div class="msg-sender">${escapeHtml(m.display_name)}</div>` : ''}
+                    <div class="msg-body">${escapeHtml(m.body)}</div>
+                    <div class="msg-time">${new Date(m.created_at).toLocaleString()}</div>
+                </div>`;
+            }).join('');
+        } else {
+            messagesEl.innerHTML = '<div class="msg-bubble system">No messages yet. Start the conversation!</div>';
+        }
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        // Actions based on state and role
+        const actionsEl = document.getElementById('chat-actions');
+        actionsEl.innerHTML = '';
+
+        const isLister = swap.lister_id === currentUser.user_id;
+        const isRequester = swap.requester_id === currentUser.user_id;
+        const myRating = swap.ratings ? swap.ratings.find(r => r.rater_id === currentUser.user_id) : null;
+
+        if (swap.state === 'pending' && isLister) {
+            actionsEl.innerHTML = `
+                <button class="btn btn-primary" onclick="acceptSwap(${swapId})">✅ Accept</button>
+                <button class="btn btn-danger" onclick="declineSwap(${swapId})">❌ Decline</button>
+            `;
+        } else if (swap.state === 'accepted') {
+            const myConfirmed = isLister ? swap.lister_confirmed : swap.requester_confirmed;
+            if (!myConfirmed) {
+                actionsEl.innerHTML = `
+                    <button class="btn btn-primary" onclick="confirmSwap(${swapId})">🤝 Confirm Handoff Complete</button>
+                `;
+            } else {
+                actionsEl.innerHTML = `<p class="text-muted">Waiting for other party to confirm…</p>`;
+            }
+        } else if (swap.state === 'completed') {
+            if (!myRating) {
+                actionsEl.innerHTML = `<button class="btn btn-primary" onclick="openRatingModal(${swapId})">⭐ Rate this swap</button>`;
+            } else {
+                actionsEl.innerHTML = `<p class="text-muted">You rated this swap ${myRating.score} ⭐</p>`;
+            }
+        }
+
+        // Show/hide input area based on state
+        const inputArea = document.getElementById('chat-input-area');
+        if (swap.state === 'declined') {
+            inputArea.classList.add('hidden');
+        } else {
+            inputArea.classList.remove('hidden');
+        }
+
+        openModal('chat-modal');
+    } catch (err) {
+        console.error('Failed to open chat:', err);
+        alert('Failed to load conversation');
+    }
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const body = input.value.trim();
+    if (!body || !currentSwapId) return;
+
+    try {
+        const res = await fetch(`${API}/api/swaps/${currentSwapId}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ body })
+        });
+        if (res.ok) {
+            input.value = '';
+            openChat(currentSwapId); // Refresh messages
+        } else {
+            const data = await res.json();
+            alert(data.detail || 'Failed to send message');
+        }
+    } catch (err) {
+        alert('Failed to send message');
+    }
+}
+
+// ── Swap Actions ───────────────────────────────────────────────────────
+
+async function acceptSwap(swapId) {
+    try {
+        const res = await fetch(`${API}/api/swaps/${swapId}/accept`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            openChat(swapId);
+        } else {
+            const data = await res.json();
+            alert(data.detail || 'Failed to accept');
+        }
+    } catch (err) {
+        alert('Failed to accept swap');
+    }
+}
+
+async function declineSwap(swapId) {
+    if (!confirm('Decline this swap request?')) return;
+    try {
+        const res = await fetch(`${API}/api/swaps/${swapId}/decline`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            openChat(swapId);
+        } else {
+            const data = await res.json();
+            alert(data.detail || 'Failed to decline');
+        }
+    } catch (err) {
+        alert('Failed to decline swap');
+    }
+}
+
+async function confirmSwap(swapId) {
+    if (!confirm('Confirm that the plant handoff is complete?')) return;
+    try {
+        const res = await fetch(`${API}/api/swaps/${swapId}/confirm`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            openChat(swapId);
+        } else {
+            const data = await res.json();
+            alert(data.detail || 'Failed to confirm');
+        }
+    } catch (err) {
+        alert('Failed to confirm swap');
+    }
+}
+
+// ── Rating ─────────────────────────────────────────────────────────────
+
+function openRatingModal(swapId) {
+    currentSwapId = swapId;
+    selectedRating = 0;
+    document.querySelectorAll('.star-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('rating-comment').value = '';
+    closeModal('chat-modal');
+    openModal('rating-modal');
+}
+
+function setRating(score) {
+    selectedRating = score;
+    document.querySelectorAll('.star-btn').forEach(btn => {
+        const btnScore = parseInt(btn.dataset.score);
+        btn.classList.toggle('active', btnScore <= score);
+    });
+}
+
+async function handleRating(e) {
+    e.preventDefault();
+    if (!selectedRating) { alert('Please select a rating'); return; }
+
+    const comment = document.getElementById('rating-comment').value.trim();
+
+    try {
+        const res = await fetch(`${API}/api/swaps/${currentSwapId}/rate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ score: selectedRating, comment: comment || undefined })
+        });
+        if (res.ok) {
+            closeModal('rating-modal');
+            alert('Thanks for rating!');
+            loadChats();
+        } else {
+            const data = await res.json();
+            alert(data.detail || 'Failed to submit rating');
+        }
+    } catch (err) {
+        alert('Failed to submit rating');
+    }
 }
