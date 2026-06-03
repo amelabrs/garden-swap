@@ -1,3 +1,8 @@
+databases:
+  - name: gardenswap-db
+    databaseName: gardenswap
+    user: gardenswap
+
 services:
   - type: web
     name: gardenswap
@@ -7,6 +12,10 @@ services:
     envVars:
       - key: GARDENSWAP_SECRET
         generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gardenswap-db
+          property: connectionString
       - key: CLOUDINARY_CLOUD_NAME
         value: ""
       - key: CLOUDINARY_API_KEY

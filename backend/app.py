@@ -137,7 +137,7 @@ def get_profile(username: str):
         (username,))
     if not user:
         conn.close()
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=401, detail="Session expired, please sign in again")
 
     listings = query(conn,
         f"""SELECT id, title, plant_type, condition, status, image_url, is_active, created_at
@@ -166,7 +166,7 @@ def get_me(user=Depends(get_current_user)):
         (user["id"],))
     conn.close()
     if not u:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=401, detail="Session expired, please sign in again")
     rating = round(u["rating_sum"] / u["rating_count"], 1) if u["rating_count"] > 0 else None
     return {**u, "rating": rating}
 
@@ -196,7 +196,7 @@ async def create_listing(
     u = query_one(conn, f"SELECT lat, lng FROM users WHERE id = {P}", (user["id"],))
     if not u:
         conn.close()
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=401, detail="Session expired, please sign in again")
 
     lat, lng = u["lat"], u["lng"]
 
@@ -463,7 +463,7 @@ def send_message(swap_id: int, req: MessageBody, user=Depends(get_current_user))
     msg_id = execute(conn,
         f"INSERT INTO messages (swap_id, sender_id, body) VALUES ({P}, {P}, {P})",
         (swap_id, user["id"], req.body.strip()[:500]))
-    execute(conn, f"UPDATE swaps SET updated_at = datetime('now') WHERE id = {P}", (swap_id,))
+    execute(conn, f"UPDATE swaps SET updated_at = CURRENT_TIMESTAMP WHERE id = {P}", (swap_id,))
     conn.commit()
     conn.close()
     return {"message_id": msg_id}
@@ -484,7 +484,7 @@ def accept_swap(swap_id: int, user=Depends(get_current_user)):
         conn.close()
         raise HTTPException(status_code=400, detail="Swap is not pending")
 
-    execute(conn, f"UPDATE swaps SET state = 'accepted', updated_at = datetime('now') WHERE id = {P}", (swap_id,))
+    execute(conn, f"UPDATE swaps SET state = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = {P}", (swap_id,))
     execute(conn, f"UPDATE listings SET swap_status = 'accepted' WHERE id = {P}", (swap["listing_id"],))
     conn.commit()
     conn.close()
@@ -506,7 +506,7 @@ def decline_swap(swap_id: int, user=Depends(get_current_user)):
         conn.close()
         raise HTTPException(status_code=400, detail="Swap cannot be declined in current state")
 
-    execute(conn, f"UPDATE swaps SET state = 'declined', updated_at = datetime('now') WHERE id = {P}", (swap_id,))
+    execute(conn, f"UPDATE swaps SET state = 'declined', updated_at = CURRENT_TIMESTAMP WHERE id = {P}", (swap_id,))
     execute(conn, f"UPDATE listings SET swap_status = 'available' WHERE id = {P}", (swap["listing_id"],))
     conn.commit()
     conn.close()
@@ -532,15 +532,15 @@ def confirm_swap(swap_id: int, user=Depends(get_current_user)):
 
     # Mark which party confirmed
     if user["id"] == swap["lister_id"]:
-        execute(conn, f"UPDATE swaps SET lister_confirmed = 1, updated_at = datetime('now') WHERE id = {P}", (swap_id,))
+        execute(conn, f"UPDATE swaps SET lister_confirmed = 1, updated_at = CURRENT_TIMESTAMP WHERE id = {P}", (swap_id,))
         swap["lister_confirmed"] = 1
     else:
-        execute(conn, f"UPDATE swaps SET requester_confirmed = 1, updated_at = datetime('now') WHERE id = {P}", (swap_id,))
+        execute(conn, f"UPDATE swaps SET requester_confirmed = 1, updated_at = CURRENT_TIMESTAMP WHERE id = {P}", (swap_id,))
         swap["requester_confirmed"] = 1
 
     # If both confirmed → complete
     if swap["lister_confirmed"] and swap["requester_confirmed"]:
-        execute(conn, f"UPDATE swaps SET state = 'completed', updated_at = datetime('now') WHERE id = {P}", (swap_id,))
+        execute(conn, f"UPDATE swaps SET state = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = {P}", (swap_id,))
         execute(conn, f"UPDATE listings SET swap_status = 'completed', is_active = 0 WHERE id = {P}", (swap["listing_id"],))
 
     conn.commit()

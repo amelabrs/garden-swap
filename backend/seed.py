@@ -34,8 +34,8 @@ USERS = [
     {"email": "deepak@demo.com", "username": "deepak_grows", "display_name": "Deepak Gowda", "zip_code": "560034"},
     {"email": "amina@demo.com", "username": "amina_blooms", "display_name": "Amina Begum", "zip_code": "560017"},
     {"email": "joel@demo.com", "username": "joel_terrace", "display_name": "Joel Mathew", "zip_code": "560038"},
-    {"email": "amel@demo.com", "username": "amel_garden", "display_name": "Amel Rahman", "zip_code": "560066"},
-    {"email": "reshma@demo.com", "username": "reshma_grows", "display_name": "Reshma Rajkumar", "zip_code": "560027"},
+    {"email": "amelabrs@gmail.com", "username": "amel_garden", "display_name": "Amel Rahman", "zip_code": "560066"},
+    {"email": "reshma.rajkumar@gmail.com", "username": "reshma_grows", "display_name": "Reshma Rajkumar", "zip_code": "560027"},
 ]
 
 # Demo listings (Bangalore area)
@@ -84,10 +84,10 @@ def seed():
         user_ids.append(uid)
 
     # Give some users ratings
-    conn.execute(f"UPDATE users SET rating_sum = 14, rating_count = 3 WHERE id = {P}", (user_ids[0],))
-    conn.execute(f"UPDATE users SET rating_sum = 9, rating_count = 2 WHERE id = {P}", (user_ids[1],))
-    conn.execute(f"UPDATE users SET rating_sum = 5, rating_count = 1 WHERE id = {P}", (user_ids[4],))
-    conn.execute(f"UPDATE users SET rating_sum = 18, rating_count = 4 WHERE id = {P}", (user_ids[5],))
+    execute(conn, f"UPDATE users SET rating_sum = 14, rating_count = 3 WHERE id = {P}", (user_ids[0],))
+    execute(conn, f"UPDATE users SET rating_sum = 9, rating_count = 2 WHERE id = {P}", (user_ids[1],))
+    execute(conn, f"UPDATE users SET rating_sum = 5, rating_count = 1 WHERE id = {P}", (user_ids[4],))
+    execute(conn, f"UPDATE users SET rating_sum = 18, rating_count = 4 WHERE id = {P}", (user_ids[5],))
 
     # Create demo listings
     for i, listing in enumerate(LISTINGS):

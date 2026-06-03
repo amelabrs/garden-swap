@@ -412,6 +412,7 @@ async function handleNewListing(e) {
             body: formData
         });
         const data = await res.json();
+        if (res.status === 401) { signOut(); openModal('auth-modal'); return; }
         if (!res.ok) { alert(data.detail || 'Failed to create listing'); return; }
 
         closeModal('new-listing-modal');
@@ -610,6 +611,7 @@ async function loadChats() {
         const res = await fetch(`${API}/api/swaps`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (res.status === 401) { signOut(); openModal('auth-modal'); return; }
         const swaps = await res.json();
 
         if (swaps.length === 0) {
