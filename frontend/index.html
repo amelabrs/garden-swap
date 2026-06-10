@@ -20,6 +20,9 @@
         </div>
         <div class="topbar-right">
             <button id="location-btn" title="Update location">📍</button>
+            <button id="notif-btn" class="hidden" onclick="switchView('notifications')" title="Notifications">
+                🔔<span id="notif-badge" class="notif-badge hidden">0</span>
+            </button>
             <button id="auth-btn">Sign In</button>
         </div>
     </header>
@@ -58,9 +61,49 @@
                 <option value="25">25 mi</option>
                 <option value="50">50 mi</option>
             </select>
+            <button id="advanced-filter-btn" onclick="toggleAdvancedFilters()" title="Advanced filters">
+                <span id="advanced-filter-label">⚙️ More</span>
+            </button>
             <button id="filter-apply" onclick="applyFilters()">Filter</button>
             <button id="filter-clear" onclick="clearFilters()">✕</button>
         </div>
+
+        <!-- Advanced filters (Grower+ only) -->
+        <div id="advanced-filter-bar" class="advanced-filter-bar hidden">
+            <div id="advanced-filter-locked" class="advanced-locked hidden">
+                <span>🔒 Advanced filters are a <strong>Grower</strong> feature</span>
+                <button class="btn-upgrade-inline" onclick="openPaywall('advanced_filters')">Upgrade</button>
+            </div>
+            <div id="advanced-filter-controls" class="hidden">
+                <select id="filter-light-needs">
+                    <option value="">Any Light</option>
+                    <option value="Full Sun">Full Sun</option>
+                    <option value="Partial Sun">Partial Sun</option>
+                    <option value="Low Light">Low Light</option>
+                    <option value="Shade">Shade</option>
+                </select>
+                <select id="filter-rarity">
+                    <option value="">Any Rarity</option>
+                    <option value="Common">Common</option>
+                    <option value="Uncommon">Uncommon</option>
+                    <option value="Rare">Rare</option>
+                    <option value="Very Rare">Very Rare</option>
+                </select>
+                <select id="filter-size">
+                    <option value="">Any Size</option>
+                    <option value="Small">Small (&lt;6")</option>
+                    <option value="Medium">Medium (6-24")</option>
+                    <option value="Large">Large (&gt;24")</option>
+                </select>
+                <select id="filter-min-rating">
+                    <option value="0">Any Rating</option>
+                    <option value="3">3+ ⭐</option>
+                    <option value="4">4+ ⭐</option>
+                    <option value="4.5">4.5+ ⭐</option>
+                </select>
+            </div>
+        </div>
+
         <div id="plant-grid" class="plant-grid"></div>
         <div id="empty-state" class="empty-state hidden">
             <p>🌱 No plants found nearby.</p>
@@ -71,6 +114,19 @@
     <!-- ── Profile View ─────────────────────────────────────── -->
     <section id="profile-view" class="hidden">
         <div id="profile-content"></div>
+    </section>
+
+    <!-- ── Notifications View ───────────────────────────────── -->
+    <section id="notifications-view" class="hidden">
+        <div class="chats-header">
+            <h2>🔔 Smart Match Alerts</h2>
+            <button class="btn-text btn-text-danger" onclick="clearAllNotifications()">Clear all</button>
+        </div>
+        <div id="notifications-list"></div>
+        <div id="notifications-empty" class="empty-state hidden">
+            <p>No notifications yet.</p>
+            <p>Add plants to your wish list to get smart match alerts!</p>
+        </div>
     </section>
 
     <!-- ── Listing Detail Modal ─────────────────────────────── -->
@@ -84,8 +140,10 @@
                     <span id="detail-status-badge" class="badge"></span>
                     <span id="detail-type-badge" class="badge badge-type"></span>
                     <span id="detail-condition-badge" class="badge badge-condition"></span>
+                    <span id="detail-rarity-badge" class="badge badge-rarity hidden"></span>
                 </div>
                 <p class="detail-desc" id="detail-desc"></p>
+                <p class="detail-attrs" id="detail-attrs"></p>
                 <p class="detail-meta" id="detail-meta"></p>
                 <p class="detail-distance" id="detail-distance"></p>
                 <div id="detail-swap-btn-area" style="margin-top:12px;">
@@ -167,6 +225,36 @@
                 <div class="form-group">
                     <label>Description (care info, swap preferences)</label>
                     <textarea id="listing-description" rows="3" placeholder="What are you looking for in exchange? Any care tips?"></textarea>
+                </div>
+                <!-- Optional enrichment fields -->
+                <div class="form-group">
+                    <label>Light Needs <span class="label-optional">(optional)</span></label>
+                    <select id="listing-light">
+                        <option value="">Not specified</option>
+                        <option value="Full Sun">Full Sun</option>
+                        <option value="Partial Sun">Partial Sun</option>
+                        <option value="Low Light">Low Light</option>
+                        <option value="Shade">Shade</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Rarity <span class="label-optional">(optional)</span></label>
+                    <select id="listing-rarity">
+                        <option value="">Not specified</option>
+                        <option value="Common">Common</option>
+                        <option value="Uncommon">Uncommon</option>
+                        <option value="Rare">Rare</option>
+                        <option value="Very Rare">Very Rare</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Size <span class="label-optional">(optional)</span></label>
+                    <select id="listing-size">
+                        <option value="">Not specified</option>
+                        <option value="Small">Small (&lt;6")</option>
+                        <option value="Medium">Medium (6-24")</option>
+                        <option value="Large">Large (&gt;24")</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <p class="form-hint" id="listing-location-hint">📍 Location: Loading...</p>
@@ -253,6 +341,62 @@
                 </div>
                 <button type="submit" class="btn btn-primary btn-full">Submit Rating</button>
             </form>
+        </div>
+    </div>
+
+    <!-- ── Paywall Modal ────────────────────────────────────── -->
+    <div id="paywall-modal" class="modal hidden">
+        <div class="modal-content paywall-content">
+            <button class="modal-close" onclick="closeModal('paywall-modal')">&times;</button>
+            <div class="paywall-header">
+                <h2>🌿 Unlock More with Garden Swap</h2>
+                <p id="paywall-reason" class="paywall-reason"></p>
+            </div>
+            <div class="tier-cards">
+                <!-- Sprout -->
+                <div class="tier-card tier-sprout">
+                    <div class="tier-name">🌱 Sprout</div>
+                    <div class="tier-price">Free</div>
+                    <ul class="tier-features">
+                        <li>✅ Up to 3 active listings</li>
+                        <li>✅ Up to 5 wish list items</li>
+                        <li>✅ Basic search &amp; filters</li>
+                        <li>✅ Direct swap requests</li>
+                        <li class="tier-no">❌ Smart match alerts</li>
+                        <li class="tier-no">❌ Advanced filters</li>
+                        <li class="tier-no">❌ Ad-free feed</li>
+                    </ul>
+                    <button class="btn btn-outline" disabled>Current Plan</button>
+                </div>
+                <!-- Grower -->
+                <div class="tier-card tier-grower tier-featured">
+                    <div class="tier-badge-pop">Most Popular</div>
+                    <div class="tier-name">🌿 Grower</div>
+                    <div class="tier-price">₹99<span>/mo</span></div>
+                    <ul class="tier-features">
+                        <li>✅ Unlimited listings</li>
+                        <li>✅ Unlimited wish list</li>
+                        <li>✅ Smart match notifications</li>
+                        <li>✅ Advanced filters</li>
+                        <li>✅ Ad-free feed</li>
+                        <li>✅ Magazine access</li>
+                    </ul>
+                    <button class="btn btn-primary" onclick="startSubscription('grower')">Upgrade to Grower</button>
+                </div>
+                <!-- Steward -->
+                <div class="tier-card tier-steward">
+                    <div class="tier-name">🌳 Steward</div>
+                    <div class="tier-price">₹249<span>/mo</span></div>
+                    <ul class="tier-features">
+                        <li>✅ Everything in Grower</li>
+                        <li>✅ 10-15% courier discount</li>
+                        <li>✅ Elite community status</li>
+                        <li>✅ AI Plant Doctor <em>(coming soon)</em></li>
+                    </ul>
+                    <button class="btn btn-steward" onclick="startSubscription('steward')">Upgrade to Steward</button>
+                </div>
+            </div>
+            <p class="paywall-footer">Cancel anytime. No hidden fees.</p>
         </div>
     </div>
 

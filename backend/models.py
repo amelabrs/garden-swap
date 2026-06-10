@@ -39,6 +39,9 @@ if DATABASE_URL:
                 avatar_url TEXT DEFAULT '',
                 rating_sum INTEGER DEFAULT 0,
                 rating_count INTEGER DEFAULT 0,
+                tier TEXT DEFAULT 'sprout',
+                stripe_customer_id TEXT,
+                stripe_subscription_id TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
             );
 
@@ -56,6 +59,9 @@ if DATABASE_URL:
                 lng REAL NOT NULL,
                 is_active INTEGER DEFAULT 1,
                 swap_status TEXT DEFAULT 'available',
+                light_needs TEXT DEFAULT '',
+                rarity TEXT DEFAULT '',
+                size TEXT DEFAULT '',
                 created_at TIMESTAMP DEFAULT NOW()
             );
 
@@ -92,6 +98,24 @@ if DATABASE_URL:
                 UNIQUE(swap_id, rater_id)
             );
 
+            CREATE TABLE IF NOT EXISTS wish_list (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                plant_name TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(user_id, plant_name)
+            );
+
+            CREATE TABLE IF NOT EXISTS notifications (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                type TEXT NOT NULL,
+                body TEXT NOT NULL,
+                listing_id INTEGER,
+                is_read INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+
             CREATE INDEX IF NOT EXISTS idx_listings_user ON listings(user_id);
             CREATE INDEX IF NOT EXISTS idx_listings_active ON listings(is_active);
             CREATE INDEX IF NOT EXISTS idx_listings_type ON listings(plant_type);
@@ -102,7 +126,29 @@ if DATABASE_URL:
             CREATE INDEX IF NOT EXISTS idx_swaps_state ON swaps(state);
             CREATE INDEX IF NOT EXISTS idx_messages_swap ON messages(swap_id);
             CREATE INDEX IF NOT EXISTS idx_ratings_swap ON ratings(swap_id);
+            CREATE INDEX IF NOT EXISTS idx_wish_list_user ON wish_list(user_id);
+            CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
         """)
+        conn.commit()
+        conn.close()
+
+    def migrate_db():
+        """Add Stage 3 columns to existing tables (PostgreSQL)."""
+        conn = get_db()
+        cur = conn.cursor()
+        migrations = [
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'sprout'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT",
+            "ALTER TABLE listings ADD COLUMN IF NOT EXISTS light_needs TEXT DEFAULT ''",
+            "ALTER TABLE listings ADD COLUMN IF NOT EXISTS rarity TEXT DEFAULT ''",
+            "ALTER TABLE listings ADD COLUMN IF NOT EXISTS size TEXT DEFAULT ''",
+        ]
+        for sql in migrations:
+            try:
+                cur.execute(sql)
+            except Exception:
+                conn.rollback()
         conn.commit()
         conn.close()
 
@@ -134,6 +180,9 @@ else:
                 avatar_url TEXT DEFAULT '',
                 rating_sum INTEGER DEFAULT 0,
                 rating_count INTEGER DEFAULT 0,
+                tier TEXT DEFAULT 'sprout',
+                stripe_customer_id TEXT,
+                stripe_subscription_id TEXT,
                 created_at TEXT DEFAULT (datetime('now'))
             );
 
@@ -151,6 +200,9 @@ else:
                 lng REAL NOT NULL,
                 is_active INTEGER DEFAULT 1,
                 swap_status TEXT DEFAULT 'available',
+                light_needs TEXT DEFAULT '',
+                rarity TEXT DEFAULT '',
+                size TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now')),
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
@@ -197,6 +249,26 @@ else:
                 UNIQUE(swap_id, rater_id)
             );
 
+            CREATE TABLE IF NOT EXISTS wish_list (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                plant_name TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id, plant_name)
+            );
+
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                body TEXT NOT NULL,
+                listing_id INTEGER,
+                is_read INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_listings_user ON listings(user_id);
             CREATE INDEX IF NOT EXISTS idx_listings_active ON listings(is_active);
             CREATE INDEX IF NOT EXISTS idx_listings_type ON listings(plant_type);
@@ -207,6 +279,53 @@ else:
             CREATE INDEX IF NOT EXISTS idx_swaps_state ON swaps(state);
             CREATE INDEX IF NOT EXISTS idx_messages_swap ON messages(swap_id);
             CREATE INDEX IF NOT EXISTS idx_ratings_swap ON ratings(swap_id);
+            CREATE INDEX IF NOT EXISTS idx_wish_list_user ON wish_list(user_id);
+            CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+        """)
+        conn.close()
+
+    def migrate_db():
+        """Add Stage 3 columns to existing tables (SQLite)."""
+        conn = get_db()
+        new_columns = [
+            ("users", "tier TEXT DEFAULT 'sprout'"),
+            ("users", "stripe_customer_id TEXT"),
+            ("users", "stripe_subscription_id TEXT"),
+            ("listings", "light_needs TEXT DEFAULT ''"),
+            ("listings", "rarity TEXT DEFAULT ''"),
+            ("listings", "size TEXT DEFAULT ''"),
+        ]
+        for table, col_def in new_columns:
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_def}")
+            except Exception:
+                pass  # Column already exists
+        conn.commit()
+
+        # Create new tables if they don't exist
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS wish_list (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                plant_name TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id, plant_name)
+            );
+
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                body TEXT NOT NULL,
+                listing_id INTEGER,
+                is_read INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_wish_list_user ON wish_list(user_id);
+            CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
         """)
         conn.close()
 
