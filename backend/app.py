@@ -44,8 +44,7 @@ app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 # Serve design system website
 WEB_DIR = Path(__file__).parent.parent / "web"
-if WEB_DIR.exists():
-    app.mount("/design", StaticFiles(directory=str(WEB_DIR), html=True), name="design")
+app.mount("/design", StaticFiles(directory=str(WEB_DIR), html=True), name="design")
 
 # Serve uploaded images locally (dev mode)
 UPLOADS_DIR = Path(__file__).parent.parent / "data" / "uploads"

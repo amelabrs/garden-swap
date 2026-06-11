@@ -53,7 +53,7 @@
        ────────────────────────────────────────────────────── */
     --web-nav-h:      64px;   /* sticky top nav                    */
     --web-sidebar-w:  264px;  /* filter sidebar                    */
-    --web-footer-h:   auto;   /* footer is content-driven          */
+    --web-footer-h:   auto; /* @kind other */  /* footer is content-driven          */
     --web-content-xs: 480px;  /* narrow prose / forms              */
     --web-content-sm: 640px;  /* editorial / article               */
     --web-content-md: 900px;  /* mid-width                         */
@@ -69,12 +69,12 @@
        ────────────────────────────────────────────────────── */
 
     /* ── Motion (organic, unhurried) ───────────────────────── */
-    --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);
-    --ease-soft:  cubic-bezier(0.4, 0, 0.2, 1);
-    --dur-fast:   0.12s;
-    --dur-base:   0.2s;
-    --dur-slow:   0.35s;
-    --lift:       translateY(-3px);  /* card hover */
+    --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);   /* @kind other */
+    --ease-soft:  cubic-bezier(0.4, 0, 0.2, 1);     /* @kind other */
+    --dur-fast:   0.12s;                /* @kind other */
+    --dur-base:   0.2s;                 /* @kind other */
+    --dur-slow:   0.35s;                /* @kind other */
+    --lift:       translateY(-3px);     /* @kind other */ /* card hover */
 
     /* ── Backdrop ──────────────────────────────────────────── */
     --scrim: rgba(26,30,22,0.55);
