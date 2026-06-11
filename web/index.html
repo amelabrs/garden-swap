@@ -3,13 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Load CSS tokens synchronously -->
+<link rel="stylesheet" href="./tokens/fonts.css">
+<link rel="stylesheet" href="./tokens/colors.css">
+<link rel="stylesheet" href="./tokens/typography.css">
+<link rel="stylesheet" href="./tokens/spacing.css">
+<link rel="stylesheet" href="./tokens/base.css">
+<link rel="stylesheet" href="./styles.css">
+<!-- Load React and DS bundle synchronously so components are ready before DC runtime renders -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="./_ds_bundle.js"></script>
 <script src="./support.js"></script>
 </head>
 <body>
 <x-dc>
 <!-- @template name="Garden Swap Website" description="Full website kit — browse marketplace, plant detail, user profile" -->
 <helmet>
-  <script src="./ds-base.js"></script>
   <script src="./data.js"></script>
   <style>
     html, body { margin: 0; }
