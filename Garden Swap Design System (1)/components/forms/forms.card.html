@@ -1,0 +1,53 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Forms" subtitle="Input, Select — fields, search, filters" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body { padding: 20px; background: var(--bg); }
+  .block { margin-bottom: 16px; }
+  .label { font-size: var(--text-xs); color: var(--text-subtle); text-transform: uppercase; letter-spacing: var(--tracking-caps); margin-bottom: 8px; font-weight: var(--weight-semibold); }
+  .row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .searchbar { background: var(--green-dark); padding: 12px 16px; border-radius: var(--radius); max-width: 320px; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { Input, Select } = window.GardenSwapDesignSystem_0373cf;
+    function Demo() {
+      return (
+        <div>
+          <div className="block">
+            <div className="label">Search field (top bar)</div>
+            <div className="searchbar">
+              <Input variant="search" placeholder="Search plants near you…" />
+            </div>
+          </div>
+          <div className="block">
+            <div className="label">Form fields</div>
+            <div className="row">
+              <Input label="Plant Name" placeholder="e.g. Monstera Deliciosa" style={{ width: 220 }} />
+              <Select label="Condition" options={['Healthy','Needs TLC','Fresh Cutting','Seed Packet']} style={{ width: 200 }} />
+            </div>
+          </div>
+          <div className="block">
+            <div className="label">Filter pills (compact)</div>
+            <div className="row">
+              <Select size="sm" options={['All Types','Houseplant','Succulent','Cutting']} />
+              <Select size="sm" options={['All Status','Swap','Free']} />
+              <Select size="sm" options={['5 mi','10 mi','25 mi']} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+  </script>
+</body>
+</html>

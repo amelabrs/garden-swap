@@ -1,0 +1,81 @@
+/* ── Garden Swap — Spacing, Radius, Shadow & Layout ──────────
+   Warmer, softer, more tactile than the original. Generous organic
+   rounding, layered paper-toned shadows, and a 4px rhythm.
+   ──────────────────────────────────────────────────────────── */
+
+:root {
+    /* ── Spacing scale (4px base) ──────────────────────────── */
+    --space-1:  4px;
+    --space-2:  6px;
+    --space-3:  8px;
+    --space-4:  10px;
+    --space-5:  12px;
+    --space-6:  14px;
+    --space-7:  16px;   /* default screen gutter */
+    --space-8:  20px;
+    --space-9:  24px;
+    --space-10: 32px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* ── Radius (organic, generous) ────────────────────────── */
+    --radius-sm:    8px;     /* small inset thumbnails */
+    --radius:       12px;    /* buttons, inputs        */
+    --radius-card:  18px;    /* cards                  */
+    --radius-lg:    24px;    /* modals, large panels   */
+    --radius-pill:  999px;   /* pills, search, chips   */
+    --radius-badge: 8px;     /* small badge pills      */
+    --radius-full:  9999px;  /* avatars, FAB, dots     */
+
+    /* ── Elevation (warm, paper-toned) ─────────────────────── */
+    --shadow-xs:    0 1px 2px rgba(32,37,29,0.05);
+    --shadow:       0 1px 2px rgba(32,37,29,0.04), 0 6px 16px rgba(32,37,29,0.06);
+    --shadow-hover: 0 2px 4px rgba(32,37,29,0.06), 0 14px 30px rgba(32,37,29,0.10);
+    --shadow-fab:   0 6px 18px rgba(40,92,57,0.34);
+    --shadow-modal: 0 24px 60px rgba(32,37,29,0.28);
+
+    /* ── Borders ───────────────────────────────────────────── */
+    --border-width: 1px;
+    --border-card:  1px solid var(--hairline);
+    --border-field: 1px solid var(--border-input);
+
+    /* ── Layout constants (mobile app shell) ───────────────── */
+    --topbar-h:      58px;
+    --nav-h:         60px;
+    --fab-size:      58px;
+    --tap-min:       44px;
+    --content-max:   480px;
+    --feed-card-min: 280px;
+
+    /* ── Layout constants (web) ─────────────────────────────
+       All web-shell and layout measurements live here.
+       page-px uses clamp so gutters narrow gracefully.
+       ────────────────────────────────────────────────────── */
+    --web-nav-h:      64px;   /* sticky top nav                    */
+    --web-sidebar-w:  264px;  /* filter sidebar                    */
+    --web-footer-h:   auto;   /* footer is content-driven          */
+    --web-content-xs: 480px;  /* narrow prose / forms              */
+    --web-content-sm: 640px;  /* editorial / article               */
+    --web-content-md: 900px;  /* mid-width                         */
+    --web-content-lg: 1200px; /* main page max-width               */
+    --web-content-xl: 1440px; /* wide / full-bleed max             */
+    --web-page-px:    clamp(var(--space-8), 4vw, var(--space-12));
+    --web-grid-gap:   var(--space-8);    /* card grid column gap   */
+    --web-section-py: var(--space-12);   /* section vertical pad   */
+
+    /* ── Breakpoint hints (use in JS/media queries) ─────────
+       not real CSS custom-property breakpoints, just references:
+       xs: 480 | sm: 640 | md: 900 | lg: 1200 | xl: 1440
+       ────────────────────────────────────────────────────── */
+
+    /* ── Motion (organic, unhurried) ───────────────────────── */
+    --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-soft:  cubic-bezier(0.4, 0, 0.2, 1);
+    --dur-fast:   0.12s;
+    --dur-base:   0.2s;
+    --dur-slow:   0.35s;
+    --lift:       translateY(-3px);  /* card hover */
+
+    /* ── Backdrop ──────────────────────────────────────────── */
+    --scrim: rgba(26,30,22,0.55);
+}

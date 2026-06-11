@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Garden Swap Mobile App" description="Mobile app kit — plant feed, swap chats, user profile in a phone shell" -->
+<helmet>
+  <script src="./ds-base.js"></script>
+  <script src="./data.js"></script>
+  <style>
+    html, body {
+      margin: 0; display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 24px; box-sizing: border-box;
+      background:
+        radial-gradient(circle at 18% 12%, #efe6d3 0%, transparent 55%),
+        radial-gradient(circle at 85% 88%, #e7ddc8 0%, transparent 55%),
+        #ece2cf;
+    }
+  </style>
+</helmet>
+<x-import component="GardenSwapMobileApp" from="./MobileApp.jsx" hint-size="390px,800px"></x-import>
+</x-dc>
+</body>
+</html>
