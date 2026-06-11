@@ -1,0 +1,26 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Paper & ink" subtitle="Kraft-cream surfaces and warm ink text" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { padding: 18px; background: var(--card); }
+  .row { display: flex; gap: 10px; }
+  .sw { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .chip { height: 64px; border-radius: var(--radius); border: 1px solid var(--line); }
+  .name { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--ink); }
+  .hex { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-faint); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--paper)"></div><span class="name">paper</span><span class="hex">#F4EDDF</span></div>
+    <div class="sw"><div class="chip" style="background:var(--paper-raised)"></div><span class="name">paper-raised</span><span class="hex">#FBF6EC</span></div>
+    <div class="sw"><div class="chip" style="background:var(--card)"></div><span class="name">card</span><span class="hex">#FFFDF8</span></div>
+    <div class="sw"><div class="chip" style="background:var(--line)"></div><span class="name">line</span><span class="hex">#E6DCC8</span></div>
+    <div class="sw"><div class="chip" style="background:var(--ink-soft)"></div><span class="name">ink-soft</span><span class="hex">#5C6151</span></div>
+    <div class="sw"><div class="chip" style="background:var(--ink)"></div><span class="name">ink</span><span class="hex">#20251D</span></div>
+  </div>
+</body>
+</html>

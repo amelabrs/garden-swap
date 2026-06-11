@@ -1,0 +1,13 @@
+/* ── Garden Swap — Webfonts ──────────────────────────────────
+   The original app shipped no fonts (system stack). For the rebrand
+   we choose a real, characterful pairing:
+     • Newsreader   — a warm editorial serif. Plant names, headings,
+       and the "Green Post" magazine voice. Has true italics + optical
+       sizing, evoking botanical field guides and seed catalogues.
+     • Hanken Grotesk — a humanist grotesque for UI, body, labels.
+       Friendly and highly legible without feeling generic.
+   Loaded from Google Fonts. (No original binaries existed to match —
+   this is an intentional design choice, flagged in the README.)
+   ──────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..800;1,400..600&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&display=swap');

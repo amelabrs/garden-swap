@@ -37,13 +37,20 @@ body {
     align-items: center;
     gap: 12px;
     padding: 12px 16px;
-    background: var(--green-dark);
+    background: var(--fern-600);
     color: white;
 }
 
 .topbar-left .logo {
     font-size: 1.2rem;
     white-space: nowrap;
+    font-size: 1.2rem;
+    white-space: nowrap;
+    
+    /* Try adding any of these: */
+    font-weight: 700;           /* Make it bold */
+    letter-spacing: 0.5px;      /* Spread letters apart */
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);  /* Add shadow */
 }
 
 .topbar-center {

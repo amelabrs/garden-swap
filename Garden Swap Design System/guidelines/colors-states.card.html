@@ -1,0 +1,29 @@
+<!-- @dsCard group="Colors" viewport="700x130" name="Swap-state pills" subtitle="Lifecycle states shown as colored badges" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { padding: 22px 18px; background: var(--surface-card); }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .pill {
+    padding: 4px 12px; border-radius: var(--radius-badge);
+    font-size: var(--text-xs); font-weight: var(--weight-semibold);
+    text-transform: uppercase; letter-spacing: var(--tracking-caps);
+  }
+  .pending   { background: var(--state-pending-fill);   color: var(--state-pending-text); }
+  .accepted  { background: var(--state-accepted-fill);  color: var(--state-accepted-text); }
+  .completed { background: var(--state-completed-fill); color: var(--state-completed-text); }
+  .declined  { background: var(--state-declined-fill);  color: var(--state-declined-text); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <span class="pill pending">Pending</span>
+    <span class="pill accepted">Accepted</span>
+    <span class="pill completed">Completed</span>
+    <span class="pill declined">Declined</span>
+  </div>
+</body>
+</html>
