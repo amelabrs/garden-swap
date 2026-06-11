@@ -51,6 +51,7 @@ body {
     font-weight: 700;           /* Make it bold */
     letter-spacing: 0.5px;      /* Spread letters apart */
     text-shadow: 0 2px 4px rgba(0,0,0,0.2);  /* Add shadow */
+    color: white;               /* Change text color */
 }
 
 .topbar-center {
