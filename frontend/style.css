@@ -1683,6 +1683,49 @@ body {
     gap: 2px;
 }
 
+/* Admin panel (profile page, admin only) */
+.admin-section {
+    border-top: 2px dashed var(--border);
+    padding-top: 16px;
+    margin-top: 8px;
+}
+.admin-vendor-list { display: flex; flex-direction: column; gap: 10px; }
+.admin-vendor-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: #fff9f0;
+    border: 1px solid #ffe0b2;
+    border-radius: 8px;
+}
+.admin-vendor-info { flex: 1; font-size: 0.85rem; line-height: 1.6; }
+.admin-vendor-status {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+.admin-vendor-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.btn-danger {
+    background: #e63946;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.btn-danger:hover { background: #c1121f; }
+
 /* Mobile overrides for shop */
 @media (max-width: 480px) {
     .product-grid {

@@ -576,13 +576,15 @@ async function loadProfile() {
     if (!currentUser) return;
 
     try {
-        const [profileRes, wishRes] = await Promise.all([
+        const [profileRes, wishRes, adminRes] = await Promise.all([
             fetch(`${API}/api/profile/${currentUser.username}`),
-            token ? fetch(`${API}/api/wish-list`, { headers: { 'Authorization': `Bearer ${token}` } }) : Promise.resolve(null)
+            token ? fetch(`${API}/api/wish-list`, { headers: { 'Authorization': `Bearer ${token}` } }) : Promise.resolve(null),
+            token ? fetch(`${API}/api/admin/vendors`, { headers: { 'Authorization': `Bearer ${token}` } }) : Promise.resolve(null),
         ]);
 
         const profile = await profileRes.json();
         const wishList = wishRes && wishRes.ok ? await wishRes.json() : [];
+        const adminVendors = adminRes && adminRes.ok ? await adminRes.json() : null;
 
         const tier = profile.tier || 'sprout';
         const tierLabel = { sprout: '🌱 Sprout', grower: '🌿 Grower', steward: '🌳 Steward' }[tier] || '🌱 Sprout';
@@ -648,6 +650,8 @@ async function loadProfile() {
                     `).join('')}
                 </div>
             </div>
+
+            ${adminVendors ? renderAdminPanel(adminVendors) : ''}
         `;
     } catch (err) {
         document.getElementById('profile-content').innerHTML = '<p style="padding:20px">Failed to load profile.</p>';
@@ -1179,6 +1183,56 @@ function haversine(lat1, lng1, lat2, lng2) {
               Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
               Math.sin(dLng/2) * Math.sin(dLng/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ── Admin Panel ────────────────────────────────────────────────────────
+
+function renderAdminPanel(vendors) {
+    const statusLabel = { 0: '⏳ Pending', 1: '✅ Approved', '-1': '❌ Rejected' };
+    const rows = vendors.length === 0
+        ? '<p style="color:#888;padding:8px 0;">No vendor registrations yet.</p>'
+        : vendors.map(v => `
+            <div class="admin-vendor-row">
+                <div class="admin-vendor-info">
+                    <strong>${escapeHtml(v.shop_name)}</strong>
+                    <span class="admin-vendor-status">${statusLabel[String(v.is_approved)] || '?'}</span><br>
+                    <span style="font-size:0.8rem;color:#666;">${escapeHtml(v.email)} · ${escapeHtml(v.phone || '—')}</span><br>
+                    <span style="font-size:0.8rem;color:#888;">${escapeHtml(v.description || '')}</span>
+                </div>
+                <div class="admin-vendor-actions">
+                    ${v.is_approved !== 1 ? `<button class="btn btn-primary btn-sm" onclick="adminApprove(${v.id})">Approve</button>` : ''}
+                    ${v.is_approved !== -1 ? `<button class="btn btn-danger btn-sm" onclick="adminReject(${v.id})">Reject</button>` : ''}
+                </div>
+            </div>
+        `).join('');
+
+    return `
+        <div class="profile-section admin-section">
+            <h3 style="margin-bottom:12px;">⚙️ Admin — Vendor Approvals</h3>
+            <div class="admin-vendor-list">${rows}</div>
+        </div>
+    `;
+}
+
+async function adminApprove(vendorId) {
+    try {
+        const res = await fetch(`${API}/api/admin/vendors/${vendorId}/approve`, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) loadProfile();
+        else { const d = await res.json(); alert(d.detail || 'Failed'); }
+    } catch (err) { alert('Failed to approve'); }
+}
+
+async function adminReject(vendorId) {
+    if (!confirm('Reject this vendor?')) return;
+    try {
+        const res = await fetch(`${API}/api/admin/vendors/${vendorId}/reject`, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) loadProfile();
+        else { const d = await res.json(); alert(d.detail || 'Failed'); }
+    } catch (err) { alert('Failed to reject'); }
 }
 
 // ── Shop ───────────────────────────────────────────────────────────────
