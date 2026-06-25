@@ -21,6 +21,9 @@
         </div>
         <div class="topbar-right">
             <button id="location-btn" title="Update location">📍</button>
+            <button id="cart-btn" class="hidden" onclick="openCartDrawer()" title="Your cart">
+                🛒<span id="cart-count-badge" class="cart-badge hidden">0</span>
+            </button>
             <button id="notif-btn" class="hidden" onclick="switchView('notifications')" title="Notifications">
                 🔔<span id="notif-badge" class="notif-badge hidden">0</span>
             </button>
@@ -31,6 +34,7 @@
     <!-- ── Navigation ───────────────────────────────────────── -->
     <nav id="main-nav">
         <button class="nav-btn active" data-view="feed">🌱 Swap</button>
+        <button class="nav-btn" data-view="shop">🛒 Shop</button>
         <button class="nav-btn" data-view="chats">💬 Chats</button>
         <button class="nav-btn" data-view="profile">👤 Profile</button>
     </nav>
@@ -398,6 +402,146 @@
                 </div>
             </div>
             <p class="paywall-footer">Cancel anytime. No hidden fees.</p>
+        </div>
+    </div>
+
+    <!-- ── Shop View ─────────────────────────────────────────── -->
+    <section id="shop-view" class="hidden">
+        <div class="shop-category-bar">
+            <button class="cat-btn active" data-cat="" onclick="filterShop('')">All</button>
+            <button class="cat-btn" data-cat="Plants" onclick="filterShop('Plants')">🌿 Plants</button>
+            <button class="cat-btn" data-cat="Pots &amp; Planters" onclick="filterShop('Pots &amp; Planters')">🪴 Pots</button>
+            <button class="cat-btn" data-cat="Soil &amp; Compost" onclick="filterShop('Soil &amp; Compost')">🌍 Soil</button>
+            <button class="cat-btn" data-cat="Fertiliser" onclick="filterShop('Fertiliser')">💧 Fertiliser</button>
+            <button class="cat-btn" data-cat="Tools" onclick="filterShop('Tools')">🔧 Tools</button>
+            <button class="cat-btn" data-cat="Seeds" onclick="filterShop('Seeds')">🌱 Seeds</button>
+            <button class="cat-btn" data-cat="Other" onclick="filterShop('Other')">📦 Other</button>
+        </div>
+        <div class="shop-toolbar">
+            <input type="text" id="shop-search" placeholder="Search products..." oninput="loadShop()">
+            <button class="btn-vendor-cta" onclick="openVendorPortal()">Sell Here →</button>
+        </div>
+        <div id="shop-grid" class="product-grid"></div>
+        <div id="shop-empty" class="empty-state hidden">
+            <p>No products found.</p>
+            <p>Be the first to list your nursery products!</p>
+        </div>
+        <div id="shop-loading" class="empty-state hidden"><p>Loading shop…</p></div>
+    </section>
+
+    <!-- ── Cart Drawer ────────────────────────────────────────── -->
+    <div id="cart-overlay" class="cart-overlay hidden" onclick="closeCartDrawer()"></div>
+    <div id="cart-drawer" class="cart-drawer hidden">
+        <div class="cart-drawer-header">
+            <h3>🛒 Your Cart</h3>
+            <button class="cart-close-btn" onclick="closeCartDrawer()">✕</button>
+        </div>
+        <div id="cart-items-list" class="cart-items-list"></div>
+        <div id="cart-empty-msg" class="cart-empty-msg hidden">
+            <p>Your cart is empty</p>
+            <button class="btn btn-primary" onclick="closeCartDrawer(); switchView('shop')">Browse Shop →</button>
+        </div>
+        <div id="cart-footer" class="cart-footer hidden">
+            <div id="steward-discount-note" class="steward-discount hidden">🌳 Steward 10% discount applied!</div>
+            <div class="cart-total-row">Total: <strong id="cart-total-amount">₹0</strong></div>
+            <button class="btn btn-primary btn-full" onclick="openCheckoutModal()">Checkout →</button>
+            <button class="btn-text btn-text-danger" onclick="clearCartConfirm()" style="margin-top:6px;width:100%;text-align:center;">Clear cart</button>
+        </div>
+    </div>
+
+    <!-- ── Product Detail Modal ──────────────────────────────── -->
+    <div id="product-detail-modal" class="modal hidden">
+        <div class="modal-content detail-content">
+            <button class="modal-close" onclick="closeModal('product-detail-modal')">&times;</button>
+            <img id="product-detail-image" src="" alt="" onerror="this.src='/static/placeholder.png'">
+            <div class="detail-info">
+                <div class="product-category-tag" id="product-detail-category"></div>
+                <h2 id="product-detail-title"></h2>
+                <div class="product-price-row">
+                    <span class="product-price-big" id="product-detail-price"></span>
+                    <span class="product-stock-badge" id="product-detail-stock"></span>
+                </div>
+                <div class="product-vendor-tag" id="product-detail-vendor"></div>
+                <p class="detail-desc" id="product-detail-desc"></p>
+                <div class="product-qty-row">
+                    <label>Qty:</label>
+                    <button onclick="changeProductQty(-1)">−</button>
+                    <input type="number" id="product-detail-qty" value="1" min="1" max="99">
+                    <button onclick="changeProductQty(1)">+</button>
+                    <button class="btn btn-primary" onclick="addToCartFromModal()">Add to Cart 🛒</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Checkout Modal ────────────────────────────────────── -->
+    <div id="checkout-modal" class="modal hidden">
+        <div class="modal-content auth-content">
+            <button class="modal-close" onclick="closeModal('checkout-modal')">&times;</button>
+            <h2>📦 Delivery Details</h2>
+            <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Vendor will ship directly to you.</p>
+            <form id="checkout-form">
+                <input type="text" id="checkout-name" placeholder="Full Name" required>
+                <input type="tel" id="checkout-phone" placeholder="Phone Number" required>
+                <textarea id="checkout-address" rows="3" placeholder="Full delivery address with pin code" required></textarea>
+                <div id="checkout-summary" class="checkout-summary"></div>
+                <button type="submit" class="btn btn-primary btn-full" id="checkout-submit-btn">Pay Securely →</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Vendor Portal Modal ───────────────────────────────── -->
+    <div id="vendor-portal-modal" class="modal hidden">
+        <div class="modal-content vendor-content">
+            <button class="modal-close" onclick="closeModal('vendor-portal-modal')">&times;</button>
+            <div id="vendor-portal-inner">
+                <p style="text-align:center;padding:20px;">Loading…</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Add Product Modal ─────────────────────────────────── -->
+    <div id="add-product-modal" class="modal hidden">
+        <div class="modal-content listing-form-content">
+            <button class="modal-close" onclick="closeModal('add-product-modal')">&times;</button>
+            <h2>+ Add Product</h2>
+            <form id="add-product-form">
+                <div class="form-group">
+                    <label>Product Image <span class="label-optional">(optional)</span></label>
+                    <input type="file" id="product-image-file" accept="image/*">
+                    <div id="product-image-preview" class="image-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="product-title-input" placeholder="e.g. Monstera Thai Constellation" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="product-category-input" required>
+                        <option value="">Select category…</option>
+                        <option value="Plants">Plants</option>
+                        <option value="Pots &amp; Planters">Pots &amp; Planters</option>
+                        <option value="Soil &amp; Compost">Soil &amp; Compost</option>
+                        <option value="Fertiliser">Fertiliser</option>
+                        <option value="Tools">Tools</option>
+                        <option value="Seeds">Seeds</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Price (₹)</label>
+                    <input type="number" id="product-price-input" placeholder="e.g. 299" min="1" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Stock Quantity <span class="label-optional">(0 = unlimited)</span></label>
+                    <input type="number" id="product-stock-input" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="product-desc-input" rows="3" placeholder="Size, weight, care instructions…"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Add Product</button>
+            </form>
         </div>
     </div>
 

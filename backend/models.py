@@ -128,12 +128,78 @@ if DATABASE_URL:
             CREATE INDEX IF NOT EXISTS idx_ratings_swap ON ratings(swap_id);
             CREATE INDEX IF NOT EXISTS idx_wish_list_user ON wish_list(user_id);
             CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+
+            CREATE TABLE IF NOT EXISTS vendors (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER UNIQUE NOT NULL REFERENCES users(id),
+                shop_name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                phone TEXT DEFAULT '',
+                stripe_account_id TEXT,
+                is_approved INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY,
+                vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+                title TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                category TEXT NOT NULL,
+                price REAL NOT NULL,
+                stock_qty INTEGER DEFAULT 0,
+                image_url TEXT DEFAULT '',
+                image_public_id TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS cart_items (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                product_id INTEGER NOT NULL REFERENCES products(id),
+                quantity INTEGER DEFAULT 1,
+                UNIQUE(user_id, product_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS orders (
+                id SERIAL PRIMARY KEY,
+                buyer_id INTEGER NOT NULL REFERENCES users(id),
+                shipping_name TEXT DEFAULT '',
+                shipping_phone TEXT DEFAULT '',
+                shipping_address TEXT NOT NULL,
+                total_amount REAL NOT NULL,
+                status TEXT DEFAULT 'pending',
+                stripe_session_id TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS order_items (
+                id SERIAL PRIMARY KEY,
+                order_id INTEGER NOT NULL REFERENCES orders(id),
+                product_id INTEGER NOT NULL REFERENCES products(id),
+                vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+                title TEXT NOT NULL,
+                price REAL NOT NULL,
+                quantity INTEGER NOT NULL,
+                subtotal REAL NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_vendors_user ON vendors(user_id);
+            CREATE INDEX IF NOT EXISTS idx_products_vendor ON products(vendor_id);
+            CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+            CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
+            CREATE INDEX IF NOT EXISTS idx_cart_user ON cart_items(user_id);
+            CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
+            CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+            CREATE INDEX IF NOT EXISTS idx_order_items_vendor ON order_items(vendor_id);
         """)
         conn.commit()
         conn.close()
 
     def migrate_db():
-        """Add Stage 3 columns to existing tables (PostgreSQL)."""
+        """Add Stage 3 + Stage 4 columns and tables to existing tables (PostgreSQL)."""
         conn = get_db()
         cur = conn.cursor()
         migrations = [
@@ -149,6 +215,67 @@ if DATABASE_URL:
                 cur.execute(sql)
             except Exception:
                 conn.rollback()
+
+        # Stage 4: new tables
+        stage4_tables = """
+            CREATE TABLE IF NOT EXISTS vendors (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER UNIQUE NOT NULL REFERENCES users(id),
+                shop_name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                phone TEXT DEFAULT '',
+                stripe_account_id TEXT,
+                is_approved INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY,
+                vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+                title TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                category TEXT NOT NULL,
+                price REAL NOT NULL,
+                stock_qty INTEGER DEFAULT 0,
+                image_url TEXT DEFAULT '',
+                image_public_id TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS cart_items (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                product_id INTEGER NOT NULL REFERENCES products(id),
+                quantity INTEGER DEFAULT 1,
+                UNIQUE(user_id, product_id)
+            );
+            CREATE TABLE IF NOT EXISTS orders (
+                id SERIAL PRIMARY KEY,
+                buyer_id INTEGER NOT NULL REFERENCES users(id),
+                shipping_name TEXT DEFAULT '',
+                shipping_phone TEXT DEFAULT '',
+                shipping_address TEXT NOT NULL,
+                total_amount REAL NOT NULL,
+                status TEXT DEFAULT 'pending',
+                stripe_session_id TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS order_items (
+                id SERIAL PRIMARY KEY,
+                order_id INTEGER NOT NULL REFERENCES orders(id),
+                product_id INTEGER NOT NULL REFERENCES products(id),
+                vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+                title TEXT NOT NULL,
+                price REAL NOT NULL,
+                quantity INTEGER NOT NULL,
+                subtotal REAL NOT NULL
+            );
+        """
+        try:
+            cur.execute(stage4_tables)
+        except Exception:
+            conn.rollback()
+
         conn.commit()
         conn.close()
 
@@ -281,11 +408,85 @@ else:
             CREATE INDEX IF NOT EXISTS idx_ratings_swap ON ratings(swap_id);
             CREATE INDEX IF NOT EXISTS idx_wish_list_user ON wish_list(user_id);
             CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+
+            CREATE TABLE IF NOT EXISTS vendors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE NOT NULL,
+                shop_name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                phone TEXT DEFAULT '',
+                stripe_account_id TEXT,
+                is_approved INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS products (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vendor_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                category TEXT NOT NULL,
+                price REAL NOT NULL,
+                stock_qty INTEGER DEFAULT 0,
+                image_url TEXT DEFAULT '',
+                image_public_id TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS cart_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity INTEGER DEFAULT 1,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                UNIQUE(user_id, product_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                buyer_id INTEGER NOT NULL,
+                shipping_name TEXT DEFAULT '',
+                shipping_phone TEXT DEFAULT '',
+                shipping_address TEXT NOT NULL,
+                total_amount REAL NOT NULL,
+                status TEXT DEFAULT 'pending',
+                stripe_session_id TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (buyer_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS order_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                vendor_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                price REAL NOT NULL,
+                quantity INTEGER NOT NULL,
+                subtotal REAL NOT NULL,
+                FOREIGN KEY (order_id) REFERENCES orders(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_vendors_user ON vendors(user_id);
+            CREATE INDEX IF NOT EXISTS idx_products_vendor ON products(vendor_id);
+            CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+            CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
+            CREATE INDEX IF NOT EXISTS idx_cart_user ON cart_items(user_id);
+            CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
+            CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+            CREATE INDEX IF NOT EXISTS idx_order_items_vendor ON order_items(vendor_id);
         """)
         conn.close()
 
     def migrate_db():
-        """Add Stage 3 columns to existing tables (SQLite)."""
+        """Add Stage 3 + Stage 4 columns and tables to existing tables (SQLite)."""
         conn = get_db()
         new_columns = [
             ("users", "tier TEXT DEFAULT 'sprout'"),
@@ -324,8 +525,80 @@ else:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
 
+            CREATE TABLE IF NOT EXISTS vendors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE NOT NULL,
+                shop_name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                phone TEXT DEFAULT '',
+                stripe_account_id TEXT,
+                is_approved INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS products (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vendor_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                category TEXT NOT NULL,
+                price REAL NOT NULL,
+                stock_qty INTEGER DEFAULT 0,
+                image_url TEXT DEFAULT '',
+                image_public_id TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS cart_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity INTEGER DEFAULT 1,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                UNIQUE(user_id, product_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                buyer_id INTEGER NOT NULL,
+                shipping_name TEXT DEFAULT '',
+                shipping_phone TEXT DEFAULT '',
+                shipping_address TEXT NOT NULL,
+                total_amount REAL NOT NULL,
+                status TEXT DEFAULT 'pending',
+                stripe_session_id TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (buyer_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS order_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                vendor_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                price REAL NOT NULL,
+                quantity INTEGER NOT NULL,
+                subtotal REAL NOT NULL,
+                FOREIGN KEY (order_id) REFERENCES orders(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_wish_list_user ON wish_list(user_id);
             CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+            CREATE INDEX IF NOT EXISTS idx_vendors_user ON vendors(user_id);
+            CREATE INDEX IF NOT EXISTS idx_products_vendor ON products(vendor_id);
+            CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+            CREATE INDEX IF NOT EXISTS idx_cart_user ON cart_items(user_id);
+            CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
+            CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+            CREATE INDEX IF NOT EXISTS idx_order_items_vendor ON order_items(vendor_id);
         """)
         conn.close()
 

@@ -16,6 +16,12 @@ let authMode = 'login';
 let paywallFeature = '';  // reason shown in paywall modal
 let advancedFiltersVisible = false;
 
+// ── Shop State ─────────────────────────────────────────────────────────
+let shopCategory = '';
+let shopProducts = [];
+let currentProduct = null;
+let cartData = { items: [], total: 0, count: 0 };
+
 const API = '';
 
 // Tier helpers
@@ -41,11 +47,20 @@ function checkUrlParams() {
     if (params.get('subscribed')) {
         const tier = params.get('subscribed');
         alert(`🎉 Welcome to ${tier.charAt(0).toUpperCase() + tier.slice(1)}! Your subscription is active.`);
-        // Refresh user data to get updated tier
         if (token) refreshMe();
         window.history.replaceState({}, '', '/');
     }
     if (params.get('cancelled')) {
+        window.history.replaceState({}, '', '/');
+    }
+    if (params.get('shop_success')) {
+        alert('🎉 Order placed successfully! Check your orders in the Shop tab.');
+        cartData = { items: [], total: 0, count: 0 };
+        updateCartBadge(0);
+        window.history.replaceState({}, '', '/');
+        switchView('shop');
+    }
+    if (params.get('shop_cancelled')) {
         window.history.replaceState({}, '', '/');
     }
 }
@@ -365,11 +380,13 @@ function updateAuthUI() {
     const btn = document.getElementById('auth-btn');
     const fab = document.getElementById('fab');
     const notifBtn = document.getElementById('notif-btn');
+    const cartBtn = document.getElementById('cart-btn');
 
     if (token && currentUser) {
         btn.textContent = 'Sign Out';
         btn.onclick = signOut;
         fab.classList.remove('hidden');
+        cartBtn.classList.remove('hidden');
 
         // Notification bell for Grower/Steward
         if (!isSprout()) {
@@ -385,11 +402,15 @@ function updateAuthUI() {
         } else {
             notifBtn.classList.add('hidden');
         }
+
+        // Load cart count silently
+        loadCartCount();
     } else {
         btn.textContent = 'Sign In';
         btn.onclick = () => openModal('auth-modal');
         fab.classList.add('hidden');
         notifBtn.classList.add('hidden');
+        cartBtn.classList.add('hidden');
     }
 }
 
@@ -835,7 +856,7 @@ async function confirmCancelSubscription() {
 // ── Navigation ─────────────────────────────────────────────────────────
 
 function switchView(view) {
-    const views = ['feed', 'profile', 'chats', 'notifications'];
+    const views = ['feed', 'shop', 'profile', 'chats', 'notifications'];
     views.forEach(v => {
         const el = document.getElementById(`${v}-view`);
         if (el) el.classList.toggle('hidden', v !== view);
@@ -845,7 +866,9 @@ function switchView(view) {
     const activeBtn = document.querySelector(`.nav-btn[data-view="${view}"]`);
     if (activeBtn) activeBtn.classList.add('active');
 
-    if (view === 'profile') {
+    if (view === 'shop') {
+        loadShop();
+    } else if (view === 'profile') {
         if (!currentUser) { openModal('auth-modal'); switchView('feed'); return; }
         loadProfile();
     } else if (view === 'chats') {
@@ -1156,4 +1179,569 @@ function haversine(lat1, lng1, lat2, lng2) {
               Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
               Math.sin(dLng/2) * Math.sin(dLng/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ── Shop ───────────────────────────────────────────────────────────────
+
+async function loadShop() {
+    const grid = document.getElementById('shop-grid');
+    const empty = document.getElementById('shop-empty');
+    const loading = document.getElementById('shop-loading');
+    if (!grid) return;
+
+    const q = (document.getElementById('shop-search')?.value || '').trim();
+    let url = `${API}/api/shop/products?limit=60`;
+    if (shopCategory) url += `&category=${encodeURIComponent(shopCategory)}`;
+    if (q) url += `&q=${encodeURIComponent(q)}`;
+
+    grid.innerHTML = '';
+    loading?.classList.remove('hidden');
+    empty?.classList.add('hidden');
+
+    try {
+        const res = await fetch(url);
+        shopProducts = await res.json();
+        loading?.classList.add('hidden');
+
+        if (shopProducts.length === 0) {
+            empty?.classList.remove('hidden');
+            return;
+        }
+        grid.innerHTML = shopProducts.map(renderProductCard).join('');
+    } catch (err) {
+        loading?.classList.add('hidden');
+        grid.innerHTML = '<p style="padding:20px;color:red;">Failed to load shop.</p>';
+    }
+}
+
+function filterShop(cat) {
+    shopCategory = cat;
+    document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.cat === cat);
+    });
+    loadShop();
+}
+
+function renderProductCard(p) {
+    const stockBadge = p.stock_qty > 0
+        ? `<span class="stock-badge stock-low">${p.stock_qty} left</span>`
+        : `<span class="stock-badge stock-ok">In Stock</span>`;
+    const img = p.image_url || '';
+    return `
+        <div class="product-card" onclick="openProductDetail(${p.id})">
+            <div class="product-card-img-wrap">
+                <img src="${escapeHtml(img)}" alt="${escapeHtml(p.title)}" loading="lazy" onerror="this.parentElement.style.background='#eef6ee'">
+                <span class="product-cat-chip">${escapeHtml(p.category)}</span>
+            </div>
+            <div class="product-card-body">
+                <div class="product-card-title">${escapeHtml(p.title)}</div>
+                <div class="product-card-shop">${escapeHtml(p.shop_name)}</div>
+                <div class="product-card-footer">
+                    <span class="product-price-tag">₹${p.price.toLocaleString('en-IN')}</span>
+                    ${stockBadge}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function openProductDetail(productId) {
+    try {
+        const res = await fetch(`${API}/api/shop/products/${productId}`);
+        if (!res.ok) { alert('Product not found'); return; }
+        currentProduct = await res.json();
+
+        const img = document.getElementById('product-detail-image');
+        img.src = currentProduct.image_url || '';
+        img.style.display = currentProduct.image_url ? 'block' : 'none';
+
+        document.getElementById('product-detail-category').textContent = currentProduct.category;
+        document.getElementById('product-detail-title').textContent = currentProduct.title;
+        document.getElementById('product-detail-price').textContent = `₹${currentProduct.price.toLocaleString('en-IN')}`;
+        document.getElementById('product-detail-vendor').textContent = `🏪 ${currentProduct.shop_name}`;
+        document.getElementById('product-detail-desc').textContent = currentProduct.description || '';
+
+        const stockEl = document.getElementById('product-detail-stock');
+        if (currentProduct.stock_qty > 0) {
+            stockEl.textContent = `${currentProduct.stock_qty} in stock`;
+            stockEl.className = 'product-stock-badge stock-low';
+        } else {
+            stockEl.textContent = 'In Stock';
+            stockEl.className = 'product-stock-badge stock-ok';
+        }
+
+        document.getElementById('product-detail-qty').value = 1;
+        openModal('product-detail-modal');
+    } catch (err) {
+        alert('Failed to load product');
+    }
+}
+
+function changeProductQty(delta) {
+    const input = document.getElementById('product-detail-qty');
+    const newVal = Math.max(1, parseInt(input.value || 1) + delta);
+    input.value = newVal;
+}
+
+async function addToCartFromModal() {
+    if (!currentProduct) return;
+    if (!token) { closeModal('product-detail-modal'); openModal('auth-modal'); return; }
+
+    const qty = parseInt(document.getElementById('product-detail-qty').value) || 1;
+    await addToCart(currentProduct.id, qty);
+    closeModal('product-detail-modal');
+    openCartDrawer();
+}
+
+async function addToCart(productId, qty = 1) {
+    if (!token) { openModal('auth-modal'); return; }
+    try {
+        const res = await fetch(`${API}/api/shop/cart`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ product_id: productId, quantity: qty })
+        });
+        if (!res.ok) {
+            const d = await res.json();
+            alert(d.detail || 'Failed to add to cart');
+            return;
+        }
+        await loadCartCount();
+    } catch (err) {
+        alert('Failed to add to cart');
+    }
+}
+
+async function loadCartCount() {
+    if (!token) return;
+    try {
+        const res = await fetch(`${API}/api/shop/cart`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) return;
+        cartData = await res.json();
+        updateCartBadge(cartData.count);
+    } catch (err) {}
+}
+
+function updateCartBadge(count) {
+    const badge = document.getElementById('cart-count-badge');
+    if (!badge) return;
+    if (count > 0) {
+        badge.textContent = count > 9 ? '9+' : count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+async function openCartDrawer() {
+    if (!token) { openModal('auth-modal'); return; }
+    document.getElementById('cart-overlay').classList.remove('hidden');
+    document.getElementById('cart-drawer').classList.remove('hidden');
+    await renderCart();
+}
+
+function closeCartDrawer() {
+    document.getElementById('cart-overlay').classList.add('hidden');
+    document.getElementById('cart-drawer').classList.add('hidden');
+}
+
+async function renderCart() {
+    if (!token) return;
+    try {
+        const res = await fetch(`${API}/api/shop/cart`, { headers: { 'Authorization': `Bearer ${token}` } });
+        cartData = await res.json();
+    } catch (err) { return; }
+
+    const list = document.getElementById('cart-items-list');
+    const emptyMsg = document.getElementById('cart-empty-msg');
+    const footer = document.getElementById('cart-footer');
+    const discountNote = document.getElementById('steward-discount-note');
+
+    if (!cartData.items || cartData.items.length === 0) {
+        list.innerHTML = '';
+        emptyMsg.classList.remove('hidden');
+        footer.classList.add('hidden');
+        updateCartBadge(0);
+        return;
+    }
+
+    emptyMsg.classList.add('hidden');
+    footer.classList.remove('hidden');
+
+    const isStew = currentUser?.tier === 'steward';
+    discountNote.classList.toggle('hidden', !isStew);
+
+    const displayTotal = isStew ? cartData.total * 0.9 : cartData.total;
+    document.getElementById('cart-total-amount').textContent = `₹${displayTotal.toFixed(0)}`;
+    if (isStew) {
+        document.getElementById('cart-total-amount').textContent = `₹${(cartData.total * 0.9).toFixed(0)} (was ₹${cartData.total.toFixed(0)})`;
+    }
+
+    updateCartBadge(cartData.count);
+
+    list.innerHTML = cartData.items.map(item => `
+        <div class="cart-item">
+            <img src="${escapeHtml(item.image_url || '')}" alt="${escapeHtml(item.title)}" class="cart-item-img"
+                 onerror="this.style.display='none'">
+            <div class="cart-item-info">
+                <div class="cart-item-title">${escapeHtml(item.title)}</div>
+                <div class="cart-item-shop">${escapeHtml(item.shop_name)}</div>
+                <div class="cart-item-price">₹${item.price.toLocaleString('en-IN')} × ${item.quantity} = ₹${(item.price * item.quantity).toLocaleString('en-IN')}</div>
+            </div>
+            <div class="cart-item-actions">
+                <button class="cart-qty-btn" onclick="changeCartQty(${item.id}, ${item.quantity - 1})">−</button>
+                <span>${item.quantity}</span>
+                <button class="cart-qty-btn" onclick="changeCartQty(${item.id}, ${item.quantity + 1})">+</button>
+                <button class="cart-remove-btn" onclick="removeFromCart(${item.id})">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function changeCartQty(itemId, newQty) {
+    if (newQty < 1) { await removeFromCart(itemId); return; }
+    try {
+        await fetch(`${API}/api/shop/cart/${itemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ quantity: newQty })
+        });
+        await renderCart();
+    } catch (err) {}
+}
+
+async function removeFromCart(itemId) {
+    try {
+        await fetch(`${API}/api/shop/cart/${itemId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        await renderCart();
+    } catch (err) {}
+}
+
+async function clearCartConfirm() {
+    if (!confirm('Clear all items from cart?')) return;
+    try {
+        await fetch(`${API}/api/shop/cart`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        cartData = { items: [], total: 0, count: 0 };
+        await renderCart();
+    } catch (err) {}
+}
+
+function openCheckoutModal() {
+    if (!cartData.items || cartData.items.length === 0) return;
+    closeCartDrawer();
+
+    const isStew = currentUser?.tier === 'steward';
+    const total = isStew ? cartData.total * 0.9 : cartData.total;
+    const itemLines = cartData.items.map(i =>
+        `${escapeHtml(i.title)} × ${i.quantity} = ₹${(i.price * i.quantity).toLocaleString('en-IN')}`
+    ).join('<br>');
+
+    document.getElementById('checkout-summary').innerHTML = `
+        <div class="checkout-items">${itemLines}</div>
+        ${isStew ? '<div class="steward-discount">🌳 Steward 10% discount applied</div>' : ''}
+        <div class="checkout-total">Total: <strong>₹${total.toFixed(0)}</strong></div>
+    `;
+
+    document.getElementById('checkout-form').reset();
+    if (currentUser?.display_name) {
+        document.getElementById('checkout-name').value = currentUser.display_name;
+    }
+    openModal('checkout-modal');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('checkout-form');
+    if (form) form.addEventListener('submit', handleCheckout);
+
+    const addProductForm = document.getElementById('add-product-form');
+    if (addProductForm) addProductForm.addEventListener('submit', handleAddProduct);
+
+    const productImageInput = document.getElementById('product-image-file');
+    if (productImageInput) {
+        productImageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    document.getElementById('product-image-preview').innerHTML =
+                        `<img src="${ev.target.result}" alt="Preview">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+});
+
+async function handleCheckout(e) {
+    e.preventDefault();
+    const btn = document.getElementById('checkout-submit-btn');
+    const name = document.getElementById('checkout-name').value.trim();
+    const phone = document.getElementById('checkout-phone').value.trim();
+    const address = document.getElementById('checkout-address').value.trim();
+
+    if (!name || !address) { alert('Name and address are required'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Processing…';
+
+    try {
+        const res = await fetch(`${API}/api/shop/checkout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ shipping_name: name, shipping_phone: phone, shipping_address: address })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.detail || 'Checkout failed');
+            btn.disabled = false;
+            btn.textContent = 'Pay Securely →';
+            return;
+        }
+
+        if (data.checkout_url) {
+            // Stripe Checkout redirect
+            window.location.href = data.checkout_url;
+        } else {
+            // Dev mode: order placed directly
+            closeModal('checkout-modal');
+            cartData = { items: [], total: 0, count: 0 };
+            updateCartBadge(0);
+            alert(`✅ Order #${data.order_id} placed! The vendor will contact you for delivery.`);
+            switchView('shop');
+        }
+    } catch (err) {
+        alert('Checkout failed. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Pay Securely →';
+    }
+}
+
+// ── Vendor Portal ──────────────────────────────────────────────────────
+
+async function openVendorPortal() {
+    openModal('vendor-portal-modal');
+    document.getElementById('vendor-portal-inner').innerHTML = '<p style="text-align:center;padding:20px;">Loading…</p>';
+
+    if (!token) {
+        document.getElementById('vendor-portal-inner').innerHTML = `
+            <div class="vendor-register-panel">
+                <h2>🏪 Sell on Garden Swap</h2>
+                <p>Sign in to register as a vendor or access your dashboard.</p>
+                <button class="btn btn-primary" onclick="closeModal('vendor-portal-modal'); openModal('auth-modal')">Sign In →</button>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/api/shop/vendors/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const vendor = data.vendor;
+
+        if (!vendor) {
+            renderVendorRegisterForm();
+        } else if (vendor.is_approved === 0) {
+            renderVendorPending(vendor);
+        } else if (vendor.is_approved === -1) {
+            renderVendorRejected();
+        } else {
+            await renderVendorDashboard(vendor);
+        }
+    } catch (err) {
+        document.getElementById('vendor-portal-inner').innerHTML = '<p style="padding:20px;color:red;">Failed to load.</p>';
+    }
+}
+
+function renderVendorRegisterForm() {
+    document.getElementById('vendor-portal-inner').innerHTML = `
+        <div class="vendor-register-panel">
+            <h2>🏪 Become a Vendor</h2>
+            <p style="color:#555;margin-bottom:16px;">Sell plants, pots, tools and more to Bangalore gardeners. Admin approval required before your shop goes live.</p>
+            <form id="vendor-register-form">
+                <div class="form-group">
+                    <label>Shop Name</label>
+                    <input type="text" id="vendor-shop-name" placeholder="e.g. Green Roots Nursery" required maxlength="80">
+                </div>
+                <div class="form-group">
+                    <label>Description <span class="label-optional">(optional)</span></label>
+                    <textarea id="vendor-description" rows="3" placeholder="What do you sell? Your experience, location…" maxlength="300"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Phone <span class="label-optional">(optional)</span></label>
+                    <input type="tel" id="vendor-phone" placeholder="+91 98765 43210" maxlength="20">
+                </div>
+                <p style="font-size:0.8rem;color:#888;margin-bottom:12px;">Commission: 10% per sale. Steward buyers get a 10% discount. Delivery handled by you.</p>
+                <button type="submit" class="btn btn-primary btn-full">Submit for Approval</button>
+            </form>
+        </div>
+    `;
+    document.getElementById('vendor-register-form').addEventListener('submit', handleVendorRegister);
+}
+
+function renderVendorPending(vendor) {
+    document.getElementById('vendor-portal-inner').innerHTML = `
+        <div class="vendor-register-panel">
+            <h2>⏳ Approval Pending</h2>
+            <p>Your shop <strong>${escapeHtml(vendor.shop_name)}</strong> is under review.</p>
+            <p style="color:#666;margin-top:8px;">You'll be notified once approved. Usually within 24 hours.</p>
+        </div>
+    `;
+}
+
+function renderVendorRejected() {
+    document.getElementById('vendor-portal-inner').innerHTML = `
+        <div class="vendor-register-panel">
+            <h2>❌ Application Not Approved</h2>
+            <p style="color:#666;">Your vendor application was not approved. Please contact us for details.</p>
+        </div>
+    `;
+}
+
+async function renderVendorDashboard(vendor) {
+    try {
+        const [productsRes, ordersRes] = await Promise.all([
+            fetch(`${API}/api/shop/vendor/products`, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`${API}/api/shop/vendor/orders`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        ]);
+        const { products } = await productsRes.json();
+        const orders = await ordersRes.json();
+
+        const productRows = products.length === 0
+            ? '<p style="color:#888;">No products yet. Add your first product!</p>'
+            : products.map(p => `
+                <div class="vendor-product-row ${!p.is_active ? 'product-inactive' : ''}">
+                    <img src="${escapeHtml(p.image_url || '')}" alt="${escapeHtml(p.title)}" class="vendor-product-thumb" onerror="this.style.display='none'">
+                    <div class="vendor-product-info">
+                        <strong>${escapeHtml(p.title)}</strong>
+                        <span class="product-cat-chip" style="font-size:0.75rem;">${escapeHtml(p.category)}</span><br>
+                        <span style="color:#2d6a4f;font-weight:600;">₹${p.price.toLocaleString('en-IN')}</span>
+                        <span style="color:#888;font-size:0.8rem;"> · ${p.stock_qty === 0 ? 'Unlimited' : p.stock_qty + ' in stock'}</span>
+                    </div>
+                    <button class="btn-text btn-text-danger" onclick="deleteVendorProduct(${p.id})">Delete</button>
+                </div>
+            `).join('');
+
+        const orderRows = orders.length === 0
+            ? '<p style="color:#888;">No orders yet.</p>'
+            : orders.map(o => `
+                <div class="vendor-order-row">
+                    <div><strong>${escapeHtml(o.title)}</strong> × ${o.quantity}</div>
+                    <div style="color:#2d6a4f;font-weight:600;">₹${o.subtotal.toLocaleString('en-IN')}</div>
+                    <div style="font-size:0.8rem;color:#666;">${escapeHtml(o.shipping_name)} · ${escapeHtml(o.shipping_phone || '')} · <span class="badge badge-state-${o.status}">${o.status}</span></div>
+                    <div style="font-size:0.75rem;color:#aaa;">${new Date(o.created_at || o.order_date).toLocaleDateString()}</div>
+                    <div style="font-size:0.8rem;color:#555;">${escapeHtml(o.shipping_address)}</div>
+                </div>
+            `).join('');
+
+        document.getElementById('vendor-portal-inner').innerHTML = `
+            <div class="vendor-dashboard">
+                <div class="vendor-dash-header">
+                    <div>
+                        <h2>🏪 ${escapeHtml(vendor.shop_name)}</h2>
+                        <p style="color:#666;font-size:0.85rem;">${escapeHtml(vendor.description || '')}</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('add-product-modal')">+ Add Product</button>
+                </div>
+
+                <div class="vendor-section">
+                    <h3>Your Products (${products.length})</h3>
+                    <div class="vendor-products-list">${productRows}</div>
+                </div>
+
+                <div class="vendor-section">
+                    <h3>Incoming Orders (${orders.length})</h3>
+                    <div class="vendor-orders-list">${orderRows}</div>
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        document.getElementById('vendor-portal-inner').innerHTML = '<p style="padding:20px;color:red;">Failed to load dashboard.</p>';
+    }
+}
+
+async function handleVendorRegister(e) {
+    e.preventDefault();
+    const shopName = document.getElementById('vendor-shop-name').value.trim();
+    const description = document.getElementById('vendor-description').value.trim();
+    const phone = document.getElementById('vendor-phone').value.trim();
+
+    if (!shopName) { alert('Shop name is required'); return; }
+
+    try {
+        const res = await fetch(`${API}/api/shop/vendors`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ shop_name: shopName, description, phone })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.detail || 'Registration failed'); return; }
+        openVendorPortal();
+    } catch (err) {
+        alert('Registration failed. Please try again.');
+    }
+}
+
+async function handleAddProduct(e) {
+    e.preventDefault();
+    if (!token) return;
+
+    const title = document.getElementById('product-title-input').value.trim();
+    const category = document.getElementById('product-category-input').value;
+    const price = document.getElementById('product-price-input').value;
+    const stock = document.getElementById('product-stock-input').value;
+    const desc = document.getElementById('product-desc-input').value.trim();
+    const imageFile = document.getElementById('product-image-file').files[0];
+
+    if (!title || !category || !price) { alert('Title, category and price are required'); return; }
+
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('category', category);
+    formData.append('price', price);
+    formData.append('stock_qty', stock || '0');
+    formData.append('description', desc);
+    if (imageFile) formData.append('image', imageFile);
+
+    try {
+        const res = await fetch(`${API}/api/shop/products`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.detail || 'Failed to add product'); return; }
+        closeModal('add-product-modal');
+        document.getElementById('add-product-form').reset();
+        document.getElementById('product-image-preview').innerHTML = '';
+        openVendorPortal();
+        loadShop();
+    } catch (err) {
+        alert('Failed to add product. Please try again.');
+    }
+}
+
+async function deleteVendorProduct(productId) {
+    if (!confirm('Delete this product? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API}/api/shop/products/${productId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            openVendorPortal();
+            loadShop();
+        } else {
+            const d = await res.json();
+            alert(d.detail || 'Failed to delete product');
+        }
+    } catch (err) {
+        alert('Failed to delete product');
+    }
 }

@@ -1,4 +1,4 @@
-"""Seed the database with demo plant listings for testing."""
+"""Seed the database with demo data for testing."""
 
 import sys
 import os
@@ -69,7 +69,8 @@ def seed():
     # Check if already seeded — delete in FK-safe order
     existing = query_one(conn, "SELECT COUNT(*) as c FROM users")
     if existing and existing["c"] > 0:
-        for tbl in ("notifications", "wish_list", "ratings", "messages", "swaps", "listings", "users"):
+        for tbl in ("order_items", "orders", "cart_items", "products", "vendors",
+                    "notifications", "wish_list", "ratings", "messages", "swaps", "listings", "users"):
             execute(conn, f"DELETE FROM {tbl}")
         conn.commit()
 
@@ -107,8 +108,48 @@ def seed():
              listing["status"], listing["description"], image_url, lat, lng,
              listing.get("light_needs", ""), listing.get("rarity", ""), listing.get("size", "")))
 
+    # ── Shop: Vendors ───────────────────────────────────────────────────
+    # Use Deepak (index 3) and Amina (index 4) as approved vendors
+    vendor_ids = []
+    VENDORS = [
+        {"user_idx": 3, "shop_name": "Green Roots Nursery",
+         "description": "Premium plants and planters from the heart of Bangalore. 10+ years of expertise.", "phone": "+91 98765 43210"},
+        {"user_idx": 4, "shop_name": "Bloom & Garden Supplies",
+         "description": "Organic soils, fertilisers and tools for the modern urban gardener.", "phone": "+91 87654 32109"},
+    ]
+    for v in VENDORS:
+        vid = execute(conn,
+            f"INSERT INTO vendors (user_id, shop_name, description, phone, is_approved) VALUES ({P}, {P}, {P}, {P}, 1)",
+            (user_ids[v["user_idx"]], v["shop_name"], v["description"], v["phone"]))
+        vendor_ids.append(vid)
+
+    # ── Shop: Products ─────────────────────────────────────────────────
+    PRODUCTS = [
+        # Green Roots Nursery (vendor 0)
+        {"vendor_idx": 0, "title": "Monstera Thai Constellation", "description": "Rare variegated monstera. Well rooted in 6-inch pot. Ships with care box.", "category": "Plants", "price": 2499, "stock_qty": 5, "image": DEMO_IMAGES[0]},
+        {"vendor_idx": 0, "title": "ZZ Plant — 12 inch", "description": "Drought-tolerant, near-indestructible. Perfect for offices and low-light corners.", "category": "Plants", "price": 599, "stock_qty": 8, "image": DEMO_IMAGES[6]},
+        {"vendor_idx": 0, "title": "Philodendron Pink Princess", "description": "Rare variegated philodendron with pink sections. Very limited stock!", "category": "Plants", "price": 3999, "stock_qty": 2, "image": DEMO_IMAGES[10]},
+        {"vendor_idx": 0, "title": "Terracotta Pot Set (3-piece)", "description": "Hand-thrown terracotta in 4\", 6\" and 8\" sizes. Drainage holes. Food-safe glaze.", "category": "Pots & Planters", "price": 349, "stock_qty": 20, "image": DEMO_IMAGES[2]},
+        {"vendor_idx": 0, "title": "Ceramic Hanging Planter", "description": "Macramé + ceramic hanging planter for trailing plants. Includes 3m jute cord.", "category": "Pots & Planters", "price": 799, "stock_qty": 15, "image": DEMO_IMAGES[1]},
+
+        # Bloom & Garden Supplies (vendor 1)
+        {"vendor_idx": 1, "title": "Cocopeat Block (5kg)", "description": "Compressed cocopeat expands to 70L. Great water retention for Bangalore climate.", "category": "Soil & Compost", "price": 299, "stock_qty": 50, "image": DEMO_IMAGES[3]},
+        {"vendor_idx": 1, "title": "Vermicompost Bag (10kg)", "description": "100% organic worm castings. Odour-free, slow-release nutrition for all plants.", "category": "Soil & Compost", "price": 499, "stock_qty": 30, "image": DEMO_IMAGES[4]},
+        {"vendor_idx": 1, "title": "Seaweed Liquid Fertiliser (500ml)", "description": "Cold-pressed seaweed extract. Boosts root development and plant immunity.", "category": "Fertiliser", "price": 249, "stock_qty": 40, "image": DEMO_IMAGES[5]},
+        {"vendor_idx": 1, "title": "Neem Cake Fertiliser (2kg)", "description": "Organic pest repellent + soil conditioner. Great for all edibles and ornamentals.", "category": "Fertiliser", "price": 149, "stock_qty": 60, "image": DEMO_IMAGES[7]},
+        {"vendor_idx": 1, "title": "Bypass Pruning Shears", "description": "Stainless steel blades, rubber grip. Suitable for stems up to 1.5cm. Lifetime warranty.", "category": "Tools", "price": 399, "stock_qty": 25, "image": DEMO_IMAGES[8]},
+        {"vendor_idx": 1, "title": "Garden Tool Set (5-piece)", "description": "Trowel, cultivator, weeder, transplanter and pruner. Heavy-duty stainless steel.", "category": "Tools", "price": 799, "stock_qty": 12, "image": DEMO_IMAGES[11]},
+        {"vendor_idx": 1, "title": "Vegetable Seed Kit (12 varieties)", "description": "Tomato, brinjal, bhindi, methi, coriander + more. Non-GMO, tested for Bangalore climate.", "category": "Seeds", "price": 399, "stock_qty": 35, "image": DEMO_IMAGES[9]},
+    ]
+    for p in PRODUCTS:
+        execute(conn,
+            f"""INSERT INTO products (vendor_id, title, description, category, price, stock_qty, image_url)
+               VALUES ({P}, {P}, {P}, {P}, {P}, {P}, {P})""",
+            (vendor_ids[p["vendor_idx"]], p["title"], p["description"], p["category"],
+             p["price"], p["stock_qty"], p["image"]))
+
     conn.commit()
     conn.close()
-    print(f"✅ Seeded {len(USERS)} users and {len(LISTINGS)} plant listings!")
+    print(f"✅ Seeded {len(USERS)} users, {len(LISTINGS)} plant listings, {len(VENDORS)} vendors, {len(PRODUCTS)} shop products!")
     print(f"   Demo login: priya@demo.com / demo1234")
-    print(f"   Open http://127.0.0.1:8000 to see the feed")
+    print(f"   Open http://127.0.0.1:8001 to see the feed")

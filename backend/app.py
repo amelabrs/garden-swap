@@ -1,4 +1,4 @@
-"""Garden Swap — Main FastAPI App (Stage 3: The Tiers)."""
+"""Garden Swap — Main FastAPI App (Stage 4: The Shop)."""
 
 import os
 import uuid
@@ -30,7 +30,8 @@ stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_GROWER = os.environ.get("STRIPE_PRICE_GROWER", "")
 STRIPE_PRICE_STEWARD = os.environ.get("STRIPE_PRICE_STEWARD", "")
-APP_URL = os.environ.get("APP_URL", "http://localhost:8000")
+APP_URL = os.environ.get("APP_URL", "http://localhost:8001")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "amelabrs@gmail.com")
 
 # Sprout tier limits
 SPROUT_MAX_LISTINGS = 3
@@ -892,7 +893,47 @@ async def stripe_webhook(request: Request):
         conn.commit()
         conn.close()
 
+    elif event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        if session.get("metadata", {}).get("type") == "shop_order":
+            _handle_shop_order(session)
+
     return {"ok": True}
+
+
+def _handle_shop_order(session):
+    """Create order record after successful Stripe Checkout (shop orders)."""
+    try:
+        order_data = json.loads(session.get("metadata", {}).get("order_data", "{}"))
+        if not order_data:
+            return
+
+        conn = get_db()
+        order_id = execute(conn,
+            f"""INSERT INTO orders (buyer_id, shipping_name, shipping_phone, shipping_address, total_amount, status, stripe_session_id)
+               VALUES ({P}, {P}, {P}, {P}, {P}, 'paid', {P})""",
+            (order_data["user_id"], order_data.get("shipping_name", ""),
+             order_data.get("shipping_phone", ""), order_data.get("shipping_address", ""),
+             order_data["total"], session["id"]))
+
+        for item in order_data.get("items", []):
+            execute(conn,
+                f"""INSERT INTO order_items (order_id, product_id, vendor_id, title, price, quantity, subtotal)
+                   VALUES ({P}, {P}, {P}, {P}, {P}, {P}, {P})""",
+                (order_id, item["product_id"], item["vendor_id"], item["title"],
+                 item["price"], item["quantity"], item["subtotal"]))
+            # Decrement stock (only if stock tracking is on)
+            execute(conn,
+                f"UPDATE products SET stock_qty = MAX(0, stock_qty - {P}) WHERE id = {P} AND stock_qty > 0",
+                (item["quantity"], item["product_id"]))
+
+        # Clear the buyer's cart
+        execute(conn, f"DELETE FROM cart_items WHERE user_id = {P}", (order_data["user_id"],))
+
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
 
 
 @app.post("/api/cancel-subscription")
@@ -912,6 +953,569 @@ def cancel_subscription(user=Depends(get_current_user)):
         return {"ok": True, "message": "Subscription will cancel at end of billing period"}
     except stripe.error.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Shop Constants ──────────────────────────────────────────────────────
+
+SHOP_CATEGORIES = ["Plants", "Pots & Planters", "Soil & Compost", "Fertiliser", "Tools", "Seeds", "Other"]
+COMMISSION_RATE = 0.10
+STEWARD_DISCOUNT = 0.10
+
+
+# ── Shop Schemas ────────────────────────────────────────────────────────
+
+class VendorRegisterRequest(BaseModel):
+    shop_name: str
+    description: str = ""
+    phone: str = ""
+
+
+class CartAddRequest(BaseModel):
+    product_id: int
+    quantity: int = 1
+
+
+class CartUpdateRequest(BaseModel):
+    quantity: int
+
+
+class CheckoutRequest(BaseModel):
+    shipping_name: str
+    shipping_phone: str = ""
+    shipping_address: str
+
+
+class ProductUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    stock_qty: Optional[int] = None
+    is_active: Optional[int] = None
+
+
+# ── Vendor Endpoints ────────────────────────────────────────────────────
+
+@app.post("/api/shop/vendors")
+def register_vendor(req: VendorRegisterRequest, user=Depends(get_current_user)):
+    if not req.shop_name.strip():
+        raise HTTPException(status_code=400, detail="Shop name is required")
+
+    conn = get_db()
+    existing = query_one(conn, f"SELECT id FROM vendors WHERE user_id = {P}", (user["id"],))
+    if existing:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Already registered as a vendor")
+
+    vendor_id = execute(conn,
+        f"INSERT INTO vendors (user_id, shop_name, description, phone) VALUES ({P}, {P}, {P}, {P})",
+        (user["id"], req.shop_name.strip(), req.description.strip(), req.phone.strip()))
+    conn.commit()
+    conn.close()
+    return {"id": vendor_id, "message": "Registration submitted. Pending admin approval."}
+
+
+@app.get("/api/shop/vendors/me")
+def get_my_vendor(user=Depends(get_current_user)):
+    conn = get_db()
+    vendor = query_one(conn,
+        f"SELECT id, shop_name, description, phone, is_approved, is_active, created_at FROM vendors WHERE user_id = {P}",
+        (user["id"],))
+    conn.close()
+    return {"vendor": vendor}
+
+
+@app.get("/api/shop/vendors/{vendor_id}")
+def get_vendor(vendor_id: int):
+    conn = get_db()
+    vendor = query_one(conn,
+        f"""SELECT v.id, v.shop_name, v.description, v.created_at, u.display_name
+           FROM vendors v JOIN users u ON v.user_id = u.id
+           WHERE v.id = {P} AND v.is_approved = 1""",
+        (vendor_id,))
+    conn.close()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return vendor
+
+
+# ── Product Endpoints ───────────────────────────────────────────────────
+
+@app.get("/api/shop/products")
+def browse_products(
+    category: str = "",
+    q: str = "",
+    vendor_id: int = 0,
+    limit: int = 60,
+):
+    conn = get_db()
+    rows = query(conn,
+        f"""SELECT p.id, p.vendor_id, p.title, p.description, p.category,
+                  p.price, p.stock_qty, p.image_url, p.created_at,
+                  v.shop_name
+           FROM products p
+           JOIN vendors v ON p.vendor_id = v.id
+           WHERE p.is_active = 1 AND v.is_approved = 1
+           ORDER BY p.created_at DESC
+           LIMIT {P}""",
+        (limit,))
+    conn.close()
+
+    results = []
+    for row in rows:
+        if category and row.get("category") != category:
+            continue
+        if q and q.lower() not in (row.get("title","") + " " + row.get("description","")).lower():
+            continue
+        if vendor_id and row.get("vendor_id") != vendor_id:
+            continue
+        results.append(dict(row))
+    return results
+
+
+@app.get("/api/shop/products/{product_id}")
+def get_product(product_id: int):
+    conn = get_db()
+    product = query_one(conn,
+        f"""SELECT p.*, v.shop_name, v.id as vendor_id
+           FROM products p
+           JOIN vendors v ON p.vendor_id = v.id
+           WHERE p.id = {P} AND p.is_active = 1 AND v.is_approved = 1""",
+        (product_id,))
+    conn.close()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
+@app.post("/api/shop/products")
+async def create_product(
+    title: str = Form(...),
+    description: str = Form(""),
+    category: str = Form(...),
+    price: float = Form(...),
+    stock_qty: int = Form(0),
+    image: UploadFile = File(None),
+    user=Depends(get_current_user),
+):
+    if category not in SHOP_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Invalid category")
+    if price <= 0:
+        raise HTTPException(status_code=400, detail="Price must be greater than 0")
+
+    conn = get_db()
+    vendor = query_one(conn, f"SELECT id, is_approved FROM vendors WHERE user_id = {P}", (user["id"],))
+    if not vendor:
+        conn.close()
+        raise HTTPException(status_code=403, detail="You must be a registered vendor")
+    if vendor["is_approved"] != 1:
+        conn.close()
+        raise HTTPException(status_code=403, detail="VENDOR_PENDING: Your vendor account is pending approval")
+
+    image_url = ""
+    public_id = None
+
+    if image and image.filename:
+        contents = await image.read()
+        if len(contents) > 10 * 1024 * 1024:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Image too large (max 10MB)")
+
+        cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+        if cloud_name:
+            upload_result = cloudinary.uploader.upload(contents, folder="gardenswap_shop",
+                transformation=[{"width": 800, "crop": "limit"}])
+            image_url = upload_result["secure_url"]
+            public_id = upload_result["public_id"]
+        else:
+            ext = image.filename.rsplit(".", 1)[-1] if "." in image.filename else "jpg"
+            filename = f"{uuid.uuid4().hex}.{ext}"
+            with open(UPLOADS_DIR / filename, "wb") as f:
+                f.write(contents)
+            image_url = f"/uploads/{filename}"
+
+    product_id = execute(conn,
+        f"""INSERT INTO products (vendor_id, title, description, category, price, stock_qty, image_url, image_public_id)
+           VALUES ({P}, {P}, {P}, {P}, {P}, {P}, {P}, {P})""",
+        (vendor["id"], title.strip(), description.strip(), category, price, stock_qty, image_url, public_id))
+    conn.commit()
+    conn.close()
+    return {"id": product_id}
+
+
+@app.patch("/api/shop/products/{product_id}")
+def update_product(product_id: int, req: ProductUpdateRequest, user=Depends(get_current_user)):
+    conn = get_db()
+    vendor = query_one(conn, f"SELECT id FROM vendors WHERE user_id = {P}", (user["id"],))
+    if not vendor:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not a vendor")
+
+    product = query_one(conn, f"SELECT id, vendor_id FROM products WHERE id = {P}", (product_id,))
+    if not product or product["vendor_id"] != vendor["id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not your product")
+
+    updates = []
+    params = []
+    if req.title is not None:
+        updates.append(f"title = {P}"); params.append(req.title.strip())
+    if req.description is not None:
+        updates.append(f"description = {P}"); params.append(req.description.strip())
+    if req.price is not None:
+        updates.append(f"price = {P}"); params.append(req.price)
+    if req.stock_qty is not None:
+        updates.append(f"stock_qty = {P}"); params.append(req.stock_qty)
+    if req.is_active is not None:
+        updates.append(f"is_active = {P}"); params.append(req.is_active)
+
+    if updates:
+        params.append(product_id)
+        execute(conn, f"UPDATE products SET {', '.join(updates)} WHERE id = {P}", tuple(params))
+        conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.delete("/api/shop/products/{product_id}")
+def delete_product(product_id: int, user=Depends(get_current_user)):
+    conn = get_db()
+    vendor = query_one(conn, f"SELECT id FROM vendors WHERE user_id = {P}", (user["id"],))
+    if not vendor:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not a vendor")
+
+    product = query_one(conn, f"SELECT vendor_id, image_public_id FROM products WHERE id = {P}", (product_id,))
+    if not product or product["vendor_id"] != vendor["id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not your product")
+
+    if product.get("image_public_id"):
+        try:
+            cloudinary.uploader.destroy(product["image_public_id"])
+        except Exception:
+            pass
+
+    execute(conn, f"UPDATE products SET is_active = 0 WHERE id = {P}", (product_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+# ── Cart Endpoints ──────────────────────────────────────────────────────
+
+@app.get("/api/shop/cart")
+def get_cart(user=Depends(get_current_user)):
+    conn = get_db()
+    items = query(conn,
+        f"""SELECT c.id, c.product_id, c.quantity,
+                  p.title, p.price, p.image_url, p.stock_qty, p.category,
+                  p.vendor_id, v.shop_name
+           FROM cart_items c
+           JOIN products p ON c.product_id = p.id
+           JOIN vendors v ON p.vendor_id = v.id
+           WHERE c.user_id = {P} AND p.is_active = 1 AND v.is_approved = 1
+           ORDER BY c.id ASC""",
+        (user["id"],))
+    conn.close()
+
+    total = sum(item["price"] * item["quantity"] for item in items)
+    count = sum(item["quantity"] for item in items)
+    return {"items": items, "total": round(total, 2), "count": count}
+
+
+@app.post("/api/shop/cart")
+def add_to_cart(req: CartAddRequest, user=Depends(get_current_user)):
+    if req.quantity < 1:
+        raise HTTPException(status_code=400, detail="Quantity must be at least 1")
+
+    conn = get_db()
+    product = query_one(conn,
+        f"""SELECT p.id, p.stock_qty, v.is_approved
+           FROM products p JOIN vendors v ON p.vendor_id = v.id
+           WHERE p.id = {P} AND p.is_active = 1""",
+        (req.product_id,))
+    if not product:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Product not found")
+    if product["is_approved"] != 1:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Vendor not available")
+    if product["stock_qty"] > 0 and req.quantity > product["stock_qty"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Only {product['stock_qty']} in stock")
+
+    existing = query_one(conn,
+        f"SELECT id, quantity FROM cart_items WHERE user_id = {P} AND product_id = {P}",
+        (user["id"], req.product_id))
+
+    if existing:
+        execute(conn, f"UPDATE cart_items SET quantity = {P} WHERE id = {P}",
+                (existing["quantity"] + req.quantity, existing["id"]))
+    else:
+        execute(conn,
+            f"INSERT INTO cart_items (user_id, product_id, quantity) VALUES ({P}, {P}, {P})",
+            (user["id"], req.product_id, req.quantity))
+
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.put("/api/shop/cart/{item_id}")
+def update_cart_item(item_id: int, req: CartUpdateRequest, user=Depends(get_current_user)):
+    if req.quantity < 1:
+        raise HTTPException(status_code=400, detail="Quantity must be at least 1")
+
+    conn = get_db()
+    item = query_one(conn, f"SELECT id FROM cart_items WHERE id = {P} AND user_id = {P}", (item_id, user["id"]))
+    if not item:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Cart item not found")
+
+    execute(conn, f"UPDATE cart_items SET quantity = {P} WHERE id = {P}", (req.quantity, item_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.delete("/api/shop/cart/{item_id}")
+def remove_cart_item(item_id: int, user=Depends(get_current_user)):
+    conn = get_db()
+    execute(conn, f"DELETE FROM cart_items WHERE id = {P} AND user_id = {P}", (item_id, user["id"]))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.delete("/api/shop/cart")
+def clear_cart(user=Depends(get_current_user)):
+    conn = get_db()
+    execute(conn, f"DELETE FROM cart_items WHERE user_id = {P}", (user["id"],))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+# ── Checkout Endpoint ───────────────────────────────────────────────────
+
+@app.post("/api/shop/checkout")
+def shop_checkout(req: CheckoutRequest, user=Depends(get_current_user)):
+    if not req.shipping_address.strip():
+        raise HTTPException(status_code=400, detail="Shipping address is required")
+
+    conn = get_db()
+    items = query(conn,
+        f"""SELECT c.product_id, c.quantity, p.title, p.price, p.vendor_id, p.stock_qty
+           FROM cart_items c
+           JOIN products p ON c.product_id = p.id
+           JOIN vendors v ON p.vendor_id = v.id
+           WHERE c.user_id = {P} AND p.is_active = 1 AND v.is_approved = 1""",
+        (user["id"],))
+
+    if not items:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Cart is empty")
+
+    u = query_one(conn, f"SELECT tier, email, stripe_customer_id FROM users WHERE id = {P}", (user["id"],))
+    conn.close()
+
+    discount = STEWARD_DISCOUNT if u and u.get("tier") == "steward" else 0
+    subtotal = sum(item["price"] * item["quantity"] for item in items)
+    total = round(subtotal * (1 - discount), 2)
+
+    # Without Stripe configured: create order directly (dev mode)
+    if not stripe.api_key:
+        conn = get_db()
+        order_id = execute(conn,
+            f"""INSERT INTO orders (buyer_id, shipping_name, shipping_phone, shipping_address, total_amount, status)
+               VALUES ({P}, {P}, {P}, {P}, {P}, 'paid')""",
+            (user["id"], req.shipping_name, req.shipping_phone, req.shipping_address, total))
+
+        for item in items:
+            item_subtotal = round(item["price"] * item["quantity"] * (1 - discount), 2)
+            execute(conn,
+                f"""INSERT INTO order_items (order_id, product_id, vendor_id, title, price, quantity, subtotal)
+                   VALUES ({P}, {P}, {P}, {P}, {P}, {P}, {P})""",
+                (order_id, item["product_id"], item["vendor_id"], item["title"],
+                 item["price"], item["quantity"], item_subtotal))
+            execute(conn,
+                f"UPDATE products SET stock_qty = MAX(0, stock_qty - {P}) WHERE id = {P} AND stock_qty > 0",
+                (item["quantity"], item["product_id"]))
+
+        execute(conn, f"DELETE FROM cart_items WHERE user_id = {P}", (user["id"],))
+        conn.commit()
+        conn.close()
+        return {"order_id": order_id, "dev_mode": True}
+
+    # Stripe mode
+    line_items = []
+    for item in items:
+        unit_price = round(item["price"] * (1 - discount), 2)
+        line_items.append({
+            "price_data": {
+                "currency": "inr",
+                "product_data": {"name": item["title"]},
+                "unit_amount": int(unit_price * 100),
+            },
+            "quantity": item["quantity"],
+        })
+
+    order_payload = {
+        "user_id": user["id"],
+        "shipping_name": req.shipping_name,
+        "shipping_phone": req.shipping_phone,
+        "shipping_address": req.shipping_address,
+        "total": total,
+        "items": [
+            {
+                "product_id": item["product_id"],
+                "vendor_id": item["vendor_id"],
+                "title": item["title"],
+                "price": item["price"],
+                "quantity": item["quantity"],
+                "subtotal": round(item["price"] * item["quantity"] * (1 - discount), 2),
+            }
+            for item in items
+        ],
+    }
+
+    customer_id = u.get("stripe_customer_id") if u else None
+    if not customer_id and u:
+        conn = get_db()
+        customer = stripe.Customer.create(email=u["email"], metadata={"user_id": str(user["id"])})
+        customer_id = customer.id
+        execute(conn, f"UPDATE users SET stripe_customer_id = {P} WHERE id = {P}", (customer_id, user["id"]))
+        conn.commit()
+        conn.close()
+
+    try:
+        session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            mode="payment",
+            line_items=line_items,
+            success_url=f"{APP_URL}/?shop_success=1",
+            cancel_url=f"{APP_URL}/?shop_cancelled=1",
+            metadata={
+                "type": "shop_order",
+                "order_data": json.dumps(order_payload),
+            },
+        )
+        return {"checkout_url": session.url}
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Order Endpoints ─────────────────────────────────────────────────────
+
+@app.get("/api/shop/orders")
+def get_my_orders(user=Depends(get_current_user)):
+    conn = get_db()
+    orders = query(conn,
+        f"SELECT id, shipping_name, shipping_address, total_amount, status, created_at FROM orders WHERE buyer_id = {P} ORDER BY created_at DESC",
+        (user["id"],))
+    for order in orders:
+        order["items"] = query(conn,
+            f"SELECT title, price, quantity, subtotal FROM order_items WHERE order_id = {P}",
+            (order["id"],))
+    conn.close()
+    return orders
+
+
+@app.get("/api/shop/orders/{order_id}")
+def get_order(order_id: int, user=Depends(get_current_user)):
+    conn = get_db()
+    order = query_one(conn,
+        f"SELECT * FROM orders WHERE id = {P} AND buyer_id = {P}", (order_id, user["id"]))
+    if not order:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Order not found")
+    order["items"] = query(conn,
+        f"""SELECT oi.title, oi.price, oi.quantity, oi.subtotal, v.shop_name
+           FROM order_items oi JOIN vendors v ON oi.vendor_id = v.id
+           WHERE oi.order_id = {P}""",
+        (order_id,))
+    conn.close()
+    return order
+
+
+# ── Vendor Dashboard ────────────────────────────────────────────────────
+
+@app.get("/api/shop/vendor/products")
+def get_vendor_products(user=Depends(get_current_user)):
+    conn = get_db()
+    vendor = query_one(conn,
+        f"SELECT id, shop_name, description, phone, is_approved FROM vendors WHERE user_id = {P}",
+        (user["id"],))
+    if not vendor:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not a vendor")
+
+    products = query(conn,
+        f"SELECT id, title, category, price, stock_qty, image_url, is_active, created_at FROM products WHERE vendor_id = {P} ORDER BY created_at DESC",
+        (vendor["id"],))
+    conn.close()
+    return {"vendor": vendor, "products": products}
+
+
+@app.get("/api/shop/vendor/orders")
+def get_vendor_orders(user=Depends(get_current_user)):
+    conn = get_db()
+    vendor = query_one(conn, f"SELECT id FROM vendors WHERE user_id = {P}", (user["id"],))
+    if not vendor:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not a vendor")
+
+    rows = query(conn,
+        f"""SELECT oi.id, oi.title, oi.price, oi.quantity, oi.subtotal,
+                  o.id as order_id, o.status, o.created_at, o.shipping_name, o.shipping_phone, o.shipping_address
+           FROM order_items oi
+           JOIN orders o ON oi.order_id = o.id
+           WHERE oi.vendor_id = {P}
+           ORDER BY o.created_at DESC""",
+        (vendor["id"],))
+    conn.close()
+    return rows
+
+
+# ── Admin Endpoints ─────────────────────────────────────────────────────
+
+def _require_admin(user):
+    conn = get_db()
+    u = query_one(conn, f"SELECT email FROM users WHERE id = {P}", (user["id"],))
+    conn.close()
+    if not u or u["email"] != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
+@app.get("/api/admin/vendors")
+def admin_list_vendors(user=Depends(get_current_user)):
+    _require_admin(user)
+    conn = get_db()
+    vendors = query(conn,
+        f"SELECT v.id, v.shop_name, v.description, v.phone, v.is_approved, v.created_at, u.email, u.display_name FROM vendors v JOIN users u ON v.user_id = u.id ORDER BY v.created_at DESC")
+    conn.close()
+    return vendors
+
+
+@app.post("/api/admin/vendors/{vendor_id}/approve")
+def admin_approve_vendor(vendor_id: int, user=Depends(get_current_user)):
+    _require_admin(user)
+    conn = get_db()
+    execute(conn, f"UPDATE vendors SET is_approved = 1 WHERE id = {P}", (vendor_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.post("/api/admin/vendors/{vendor_id}/reject")
+def admin_reject_vendor(vendor_id: int, user=Depends(get_current_user)):
+    _require_admin(user)
+    conn = get_db()
+    execute(conn, f"UPDATE vendors SET is_approved = -1 WHERE id = {P}", (vendor_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 
 # ── SPA Fallback ────────────────────────────────────────────────────────
