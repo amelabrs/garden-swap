@@ -1520,6 +1520,11 @@ def admin_reject_vendor(vendor_id: int, user=Depends(get_current_user)):
 
 # ── SPA Fallback ────────────────────────────────────────────────────────
 
+@app.get("/test-plan")
+def serve_test_plan():
+    return FileResponse(str(FRONTEND_DIR / "test-plan.html"))
+
+
 @app.get("/")
 def serve_index():
     return FileResponse(str(FRONTEND_DIR / "index.html"))
