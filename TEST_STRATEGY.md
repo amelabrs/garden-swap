@@ -1,11 +1,11 @@
-# Garden Swap — Test Strategy (Stage 4: The Shop)
+# Garden Swap — Test Strategy (Stage 5: AI Plant Doctor)
 
 ---
 
 ## AI Instructions (for future sessions)
 
 > You are working on Garden Swap, a hyper-local plant trading PWA for Bangalore gardeners.
-> This file contains the test strategy for Stage 4 (The Shop).
+> This file contains the cumulative test strategy through Stage 5 (AI Plant Doctor).
 >
 > **Your task:** Take the content of this file and ensure it is live as a hosted HTML page at
 > `/test-plan` on Render (https://garden-swap.onrender.com/test-plan).
@@ -19,20 +19,20 @@
 ## Email to Reshma
 
 **To:** reshma.rajkumar@gmail.com
-**Subject:** Garden Swap — Stage 4 (The Shop) is ready for testing 🌿
+**Subject:** Garden Swap — Stage 5 (AI Plant Doctor) is ready for testing 🌿
 
 ---
 
 Hi Reshma,
 
-Stage 4 of Garden Swap is live — we've added a full marketplace where vendors can sell
-plants, pots, soil, fertilisers, tools and seeds. Would love your feedback before we
-push this to production.
+Stage 5 of Garden Swap is live — we've added an AI-powered Plant Doctor that
+lets Steward-tier users upload a photo of their plant and get an instant diagnosis:
+cause, treatment steps, and prevention tips, powered by Claude AI.
 
 **Test URL:** https://garden-swap.onrender.com
 *(Note: it's on Render free tier — may take 30–60 seconds to wake up on first load)*
 
-**Your login:** reshma.rajkumar@gmail.com / demo1234
+**Your login for Plant Doctor testing:** priya@demo.com / demo1234 (Steward tier)
 
 **Full test plan:** https://garden-swap.onrender.com/test-plan
 
@@ -40,19 +40,21 @@ push this to production.
 
 **What's new to test:**
 
-1. **Shop tab** — browse products across 7 categories
-2. **Cart** — add items from multiple vendors, adjust quantities
-3. **Checkout** — enter a delivery address and place an order
-4. **Vendor registration** — click "Sell Here →" in the Shop tab and register as a vendor
-5. **Steward discount** — upgrade to Steward tier and confirm 10% off at checkout
+1. **🩺 Doctor tab** — visible in the bottom nav for all users
+2. **Upload a plant photo** — tap the upload area, choose a photo from your phone
+3. **Get a diagnosis** — tap "Diagnose my plant →" and read the AI response
+4. **Access control** — log in as rachel@demo.com (Sprout) and confirm the Doctor tab shows a locked/upgrade screen
+5. **Usage counter** — confirm the "X diagnoses remaining this month" count decrements after each use
 
 **Existing features to recheck** (make sure nothing broke):
-- Plant listings feed, search and filters
+
+- Shop tab: browse products, add to cart, checkout
+- Swap feed, search, filters
 - Swap requests and chat
 - Wish list and smart match alerts (Grower tier)
 
-Please note anything that feels off — wrong price, button not working, missing image,
-confusing flow, anything. No detail is too small.
+Please note anything that feels off — wrong message, button not working, confusing flow,
+AI response that seems wrong or unhelpful. No detail is too small.
 
 Thanks so much!
 Amel
@@ -61,7 +63,43 @@ Amel
 
 ## Test Cases
 
-### TC-01 — Product Browse
+### TC-09 — Plant Doctor Access Control
+| Step | Action | Expected |
+|------|--------|----------|
+| 1 | Open 🩺 Doctor tab without logging in | Locked/upgrade screen shown |
+| 2 | Log in as rachel@demo.com (Sprout) → Doctor tab | Upgrade prompt with "Upgrade to Steward" button |
+| 3 | Log in as faizan@demo.com (Grower) → Doctor tab | Upgrade prompt (Grower is not enough) |
+| 4 | Log in as priya@demo.com (Steward) → Doctor tab | Upload UI appears |
+| 5 | Direct POST /api/plant-doctor as Rachel (Sprout) | Returns 403 Forbidden |
+
+### TC-10 — Plant Doctor Diagnosis Flow
+| Step | Action | Expected |
+|------|--------|----------|
+| 1 | Log in as Priya (Steward) → Doctor tab | Upload area and "Diagnose" button shown |
+| 2 | Tap upload area | File picker opens; only JPEG/PNG/WebP selectable |
+| 3 | Select a clear photo of a plant | Thumbnail preview appears; button becomes active |
+| 4 | Tap "Diagnose my plant →" | Button shows "Analysing…", then result appears |
+| 5 | Read the diagnosis | Contains headings: Diagnosis, Likely cause, Treatment, Prevention |
+| 6 | Check usage counter below result | Shows "N diagnoses remaining this month" |
+| 7 | Tap "Diagnose another plant" | Upload area resets, ready for a new photo |
+
+### TC-11 — Plant Doctor Edge Cases
+| Step | Action | Expected |
+|------|--------|----------|
+| 1 | Upload a non-plant photo (e.g. a selfie) | AI politely states the image is not a plant |
+| 2 | Upload a healthy, thriving plant | AI confirms the plant looks healthy |
+| 3 | Try to submit before selecting an image | "Diagnose" button remains disabled |
+| 4 | Upload a photo > 10 MB | Error: "Image too large. Please upload under 10 MB." |
+| 5 | Reload the page and revisit Doctor tab | Usage count is still accurate (persisted in DB) |
+
+### TC-12 — Plant Doctor Rate Limit
+| Step | Action | Expected |
+|------|--------|----------|
+| 1 | Use Plant Doctor 10 times in a month | All 10 succeed; counter reaches "0 remaining" |
+| 2 | Attempt an 11th diagnosis | Error: "Monthly limit reached (10 diagnoses/month). Resets on the 1st." |
+| 3 | Check usage as a different Steward user | Their own counter is independent |
+
+### TC-01 — Product Browse (Stage 4 regression)
 | Step | Action | Expected |
 |------|--------|----------|
 | 1 | Open Shop tab | 12 products load in a grid |
@@ -71,7 +109,7 @@ Amel
 | 5 | Tap a product card | Detail modal opens with title, price, vendor, description |
 | 6 | Sign out, open Shop | Products still visible (no login required to browse) |
 
-### TC-02 — Cart
+### TC-02 — Cart (Stage 4 regression)
 | Step | Action | Expected |
 |------|--------|----------|
 | 1 | Add item without logging in | Sign-in prompt appears |
@@ -82,7 +120,7 @@ Amel
 | 6 | Tap 🗑️ on an item | Item removed, badge updates |
 | 7 | Tap "Clear cart" | Confirmation prompt → cart empties |
 
-### TC-03 — Checkout (Dev Mode — no card needed)
+### TC-03 — Checkout (Stage 4 regression)
 | Step | Action | Expected |
 |------|--------|----------|
 | 1 | Add items to cart | Cart shows correct total |
@@ -91,7 +129,7 @@ Amel
 | 4 | Fill in name, phone, address → submit | Success message with order number |
 | 5 | Check cart after order | Cart is empty |
 
-### TC-04 — Vendor Registration
+### TC-04 — Vendor Registration (Stage 4 regression)
 | Step | Action | Expected |
 |------|--------|----------|
 | 1 | Go to Shop → "Sell Here →" | Vendor registration form opens |
@@ -103,15 +141,15 @@ Amel
 | 7 | Add product with title, price, category, image | Product appears in Shop grid |
 | 8 | Delete product from dashboard | Product disappears from Shop |
 
-### TC-05 — Steward Discount
+### TC-05 — Steward Discount (Stage 4 regression)
 | Step | Action | Expected |
 |------|--------|----------|
-| 1 | Log in as Priya (steward tier) | Tier badge shows 🌳 Steward |
+| 1 | Log in as Priya (Steward tier) | Tier badge shows 🌳 Steward |
 | 2 | Add items to cart, open cart | "🌳 Steward 10% discount applied!" banner shows |
 | 3 | Check total in cart | Total is 10% less than item sum |
 | 4 | Proceed to checkout | Checkout total matches discounted amount |
 
-### TC-06 — Admin Panel
+### TC-06 — Admin Panel (Stage 4 regression)
 | Step | Action | Expected |
 |------|--------|----------|
 | 1 | Log in as amelabrs@gmail.com → Profile | "⚙️ Admin — Vendor Approvals" section visible |
@@ -120,15 +158,14 @@ Amel
 | 4 | Reject a vendor | Status → ❌, vendor sees rejection screen |
 | 5 | Direct GET /api/admin/vendors without admin token | Returns 403 |
 
-### TC-07 — Regression (existing features)
+### TC-07 — Regression (core swap features)
 | Step | Action | Expected |
 |------|--------|----------|
 | 1 | Open Swap tab | Plant listings load |
 | 2 | Post a new listing | Appears in feed |
 | 3 | Request a swap | Chat opens |
 | 4 | Add item to wish list (Sprout) | Capped at 5 items |
-| 5 | Subscribe to Grower (Stripe test) | Tier upgrades, smart match works |
-| 6 | Notification bell | Shows unread count for Grower+ |
+| 5 | Notification bell | Shows unread count for Grower+ |
 
 ### TC-08 — Edge Cases
 | Step | Action | Expected |
@@ -144,7 +181,7 @@ Amel
 
 | User | Email | Password | Tier | Role |
 |------|-------|----------|------|------|
-| Priya Sharma | priya@demo.com | demo1234 | 🌳 Steward | Regular user |
+| Priya Sharma | priya@demo.com | demo1234 | 🌳 Steward | Plant Doctor tester |
 | Faizan Ahmed | faizan@demo.com | demo1234 | 🌿 Grower | Regular user |
 | Rachel D'Souza | rachel@demo.com | demo1234 | 🌱 Sprout | Regular user |
 | Deepak Gowda | deepak@demo.com | demo1234 | 🌱 Sprout | Vendor (Green Roots Nursery) |
