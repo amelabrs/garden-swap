@@ -3,7 +3,9 @@
 import os
 import uuid
 import json
+import base64
 import stripe
+import anthropic
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Header, Query, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -1516,6 +1518,90 @@ def admin_reject_vendor(vendor_id: int, user=Depends(get_current_user)):
     conn.commit()
     conn.close()
     return {"ok": True}
+
+
+# ── Stage 5: AI Plant Doctor ─────────────────────────────────────────────
+
+PLANT_DOCTOR_MONTHLY_LIMIT = 10
+
+@app.post("/api/plant-doctor")
+async def plant_doctor(image: UploadFile = File(...), user=Depends(get_current_user)):
+    conn = get_db()
+    u = query_one(conn, f"SELECT tier FROM users WHERE id = {P}", (user["id"],))
+    if not u or u.get("tier", "sprout") != "steward":
+        conn.close()
+        raise HTTPException(status_code=403, detail="Plant Doctor is a Steward-only feature. Upgrade your plan to access it.")
+    if DATABASE_URL:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COUNT(*) AS cnt FROM plant_doctor_logs WHERE user_id = %s AND created_at >= date_trunc('month', NOW())",
+            (user["id"],)
+        )
+        row = cur.fetchone()
+        usage = row["cnt"] if isinstance(row, dict) else row[0]
+    else:
+        row = query_one(conn, "SELECT COUNT(*) AS cnt FROM plant_doctor_logs WHERE user_id = ? AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')", (user["id"],))
+        usage = row["cnt"]
+
+    if usage >= PLANT_DOCTOR_MONTHLY_LIMIT:
+        conn.close()
+        raise HTTPException(status_code=429, detail=f"Monthly limit reached ({PLANT_DOCTOR_MONTHLY_LIMIT} diagnoses/month). Resets on the 1st.")
+
+    image_bytes = await image.read()
+    if len(image_bytes) > 10 * 1024 * 1024:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Image too large. Please upload an image under 10 MB.")
+
+    media_type = image.content_type or "image/jpeg"
+    if media_type not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Unsupported image format. Use JPEG, PNG, or WebP.")
+
+    image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        conn.close()
+        raise HTTPException(status_code=503, detail="AI Plant Doctor is not configured on this server. Please contact the admin.")
+
+    try:
+        ai_client = anthropic.Anthropic(api_key=api_key)
+        response = ai_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {"type": "base64", "media_type": media_type, "data": image_b64}
+                    },
+                    {
+                        "type": "text",
+                        "text": (
+                            "You are a plant health expert. Analyse this photo of a plant and provide:\n"
+                            "1. **Diagnosis** — what is wrong with the plant (or confirm it looks healthy)\n"
+                            "2. **Likely cause** — pest, disease, watering issue, sunlight, nutrient deficiency, etc.\n"
+                            "3. **Treatment** — specific actionable steps to fix the problem\n"
+                            "4. **Prevention** — how to avoid this in future\n\n"
+                            "Keep the response concise (under 300 words) and practical for a home gardener in India. "
+                            "If the image is not a plant, politely say so."
+                        )
+                    }
+                ]
+            }]
+        )
+        diagnosis = response.content[0].text
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=502, detail=f"AI diagnosis failed: {str(e)}")
+
+    execute(conn, "INSERT INTO plant_doctor_logs (user_id) VALUES (?)" if not DATABASE_URL else "INSERT INTO plant_doctor_logs (user_id) VALUES (%s)", (user["id"],))
+    conn.commit()
+    conn.close()
+
+    remaining = PLANT_DOCTOR_MONTHLY_LIMIT - usage - 1
+    return {"diagnosis": diagnosis, "remaining": remaining}
 
 
 # ── SPA Fallback ────────────────────────────────────────────────────────

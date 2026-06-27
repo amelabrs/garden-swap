@@ -860,7 +860,7 @@ async function confirmCancelSubscription() {
 // ── Navigation ─────────────────────────────────────────────────────────
 
 function switchView(view) {
-    const views = ['feed', 'shop', 'profile', 'chats', 'notifications'];
+    const views = ['feed', 'shop', 'doctor', 'profile', 'chats', 'notifications'];
     views.forEach(v => {
         const el = document.getElementById(`${v}-view`);
         if (el) el.classList.toggle('hidden', v !== view);
@@ -872,6 +872,8 @@ function switchView(view) {
 
     if (view === 'shop') {
         loadShop();
+    } else if (view === 'doctor') {
+        loadDoctorView();
     } else if (view === 'profile') {
         if (!currentUser) { openModal('auth-modal'); switchView('feed'); return; }
         loadProfile();
@@ -1797,5 +1799,108 @@ async function deleteVendorProduct(productId) {
         }
     } catch (err) {
         alert('Failed to delete product');
+    }
+}
+
+// ── Stage 5: AI Plant Doctor ────────────────────────────────────────────
+
+let doctorImageFile = null;
+
+function loadDoctorView() {
+    const locked = document.getElementById('doctor-locked');
+    const panel = document.getElementById('doctor-panel');
+
+    if (!currentUser || currentUser.tier !== 'steward') {
+        locked.classList.remove('hidden');
+        panel.classList.add('hidden');
+        return;
+    }
+
+    locked.classList.add('hidden');
+    panel.classList.remove('hidden');
+    doctorImageFile = null;
+    resetDoctorUpload();
+}
+
+function resetDoctorUpload() {
+    doctorImageFile = null;
+    document.getElementById('doctor-upload-placeholder').classList.remove('hidden');
+    const preview = document.getElementById('doctor-preview-img');
+    preview.classList.add('hidden');
+    preview.src = '';
+    document.getElementById('doctor-image-input').value = '';
+    document.getElementById('doctor-submit-btn').disabled = true;
+    document.getElementById('doctor-result').classList.add('hidden');
+    document.getElementById('doctor-result').innerHTML = '';
+}
+
+function onDoctorImageSelected(input) {
+    const file = input.files[0];
+    if (!file) return;
+    doctorImageFile = file;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('doctor-preview-img');
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+        document.getElementById('doctor-upload-placeholder').classList.add('hidden');
+        document.getElementById('doctor-submit-btn').disabled = false;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function submitToDoctor() {
+    if (!doctorImageFile) return;
+
+    const btn = document.getElementById('doctor-submit-btn');
+    const resultEl = document.getElementById('doctor-result');
+
+    btn.disabled = true;
+    btn.textContent = 'Analysing…';
+    resultEl.classList.add('hidden');
+    resultEl.innerHTML = '';
+
+    try {
+        const formData = new FormData();
+        formData.append('image', doctorImageFile);
+
+        const res = await fetch('/api/plant-doctor', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            resultEl.innerHTML = `<div class="doctor-error">⚠️ ${data.detail || 'Diagnosis failed. Please try again.'}</div>`;
+            resultEl.classList.remove('hidden');
+            btn.disabled = false;
+            btn.textContent = 'Diagnose my plant →';
+            return;
+        }
+
+        const diagnosisHtml = data.diagnosis
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+
+        resultEl.innerHTML = `
+            <div class="doctor-diagnosis">
+                ${diagnosisHtml}
+            </div>
+            <p class="doctor-remaining">${data.remaining} diagnosis${data.remaining === 1 ? '' : 'es'} remaining this month</p>
+            <button class="btn btn-secondary" onclick="resetDoctorUpload()">Diagnose another plant</button>
+        `;
+        resultEl.classList.remove('hidden');
+
+        const usageNote = document.getElementById('doctor-usage-note');
+        usageNote.textContent = `${data.remaining} diagnosis${data.remaining === 1 ? '' : 'es'} remaining this month`;
+
+        btn.textContent = 'Diagnose my plant →';
+    } catch (err) {
+        resultEl.innerHTML = '<div class="doctor-error">⚠️ Network error. Please try again.</div>';
+        resultEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Diagnose my plant →';
     }
 }

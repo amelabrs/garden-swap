@@ -35,6 +35,7 @@
     <nav id="main-nav">
         <button class="nav-btn active" data-view="feed">🌱 Swap</button>
         <button class="nav-btn" data-view="shop">🛒 Shop</button>
+        <button class="nav-btn" data-view="doctor">🩺 Doctor</button>
         <button class="nav-btn" data-view="chats">💬 Chats</button>
         <button class="nav-btn" data-view="profile">👤 Profile</button>
     </nav>
@@ -542,6 +543,44 @@
                 </div>
                 <button type="submit" class="btn btn-primary btn-full">Add Product</button>
             </form>
+        </div>
+    </div>
+
+    <!-- ── Plant Doctor view ─────────────────────────────────── -->
+    <section id="doctor-view" class="hidden">
+        <div id="doctor-locked" class="doctor-locked hidden">
+            <div class="doctor-lock-icon">🩺</div>
+            <h2>AI Plant Doctor</h2>
+            <p>Upload a photo of your plant and get an instant diagnosis — pests, diseases, care issues and treatment steps.</p>
+            <p class="doctor-tier-note">🌳 Steward feature &nbsp;·&nbsp; 10 diagnoses/month</p>
+            <button class="btn btn-primary" onclick="switchView('profile')">Upgrade to Steward</button>
+        </div>
+        <div id="doctor-panel" class="doctor-panel hidden">
+            <div class="doctor-header">
+                <h2>🩺 AI Plant Doctor</h2>
+                <p>Upload a photo of your plant and get an instant diagnosis.</p>
+                <p id="doctor-usage-note" class="doctor-usage-note"></p>
+            </div>
+            <div class="doctor-upload-area" id="doctor-upload-area" onclick="document.getElementById('doctor-image-input').click()">
+                <div id="doctor-upload-placeholder">
+                    <div class="doctor-upload-icon">📷</div>
+                    <p>Tap to choose a photo</p>
+                    <p class="doctor-upload-hint">JPEG, PNG or WebP · max 10 MB</p>
+                </div>
+                <img id="doctor-preview-img" class="hidden" alt="plant preview">
+                <input type="file" id="doctor-image-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="onDoctorImageSelected(this)">
+            </div>
+            <button id="doctor-submit-btn" class="btn btn-primary btn-full" onclick="submitToDoctor()" disabled>Diagnose my plant →</button>
+            <div id="doctor-result" class="doctor-result hidden"></div>
+        </div>
+    </section>
+
+    <!-- ── Plant Doctor result modal ─────────────────────────── -->
+    <div id="doctor-result-modal" class="modal hidden">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeModal('doctor-result-modal')">&times;</button>
+            <h3>🩺 Diagnosis</h3>
+            <div id="doctor-result-modal-body" class="doctor-modal-body"></div>
         </div>
     </div>
 

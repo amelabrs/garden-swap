@@ -194,12 +194,20 @@ if DATABASE_URL:
             CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
             CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
             CREATE INDEX IF NOT EXISTS idx_order_items_vendor ON order_items(vendor_id);
+
+            CREATE TABLE IF NOT EXISTS plant_doctor_logs (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_plant_doctor_user ON plant_doctor_logs(user_id);
         """)
         conn.commit()
         conn.close()
 
     def migrate_db():
-        """Add Stage 3 + Stage 4 columns and tables to existing tables (PostgreSQL)."""
+        """Add Stage 3 + Stage 4 + Stage 5 columns and tables to existing tables (PostgreSQL)."""
         conn = get_db()
         cur = conn.cursor()
         migrations = [
@@ -273,6 +281,19 @@ if DATABASE_URL:
         """
         try:
             cur.execute(stage4_tables)
+        except Exception:
+            conn.rollback()
+
+        # Stage 5: plant_doctor_logs
+        try:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS plant_doctor_logs (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_plant_doctor_user ON plant_doctor_logs(user_id);
+            """)
         except Exception:
             conn.rollback()
 
@@ -482,6 +503,14 @@ else:
             CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
             CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
             CREATE INDEX IF NOT EXISTS idx_order_items_vendor ON order_items(vendor_id);
+
+            CREATE TABLE IF NOT EXISTS plant_doctor_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_plant_doctor_user ON plant_doctor_logs(user_id);
         """)
         conn.close()
 
@@ -599,6 +628,14 @@ else:
             CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
             CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
             CREATE INDEX IF NOT EXISTS idx_order_items_vendor ON order_items(vendor_id);
+
+            CREATE TABLE IF NOT EXISTS plant_doctor_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_plant_doctor_user ON plant_doctor_logs(user_id);
         """)
         conn.close()
 

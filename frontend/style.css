@@ -1737,3 +1737,103 @@ body {
     .vendor-content { max-width: 100vw; }
     .vendor-dash-header { flex-direction: column; }
 }
+
+/* ── Stage 5: Plant Doctor ──────────────────────────────────── */
+
+#doctor-view {
+    padding: 20px 16px 80px;
+    max-width: 540px;
+    margin: 0 auto;
+}
+
+.doctor-locked {
+    text-align: center;
+    padding: 48px 24px;
+}
+.doctor-lock-icon { font-size: 3rem; margin-bottom: 12px; }
+.doctor-locked h2 { font-size: 1.3rem; color: #2d6a4f; margin-bottom: 10px; }
+.doctor-locked p { color: #555; font-size: 0.92rem; line-height: 1.6; margin-bottom: 8px; }
+.doctor-tier-note {
+    display: inline-block;
+    background: #e8f5e9;
+    color: #2d6a4f;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin: 10px 0 20px;
+}
+
+.doctor-panel {}
+.doctor-header { margin-bottom: 20px; }
+.doctor-header h2 { font-size: 1.3rem; color: #2d6a4f; margin-bottom: 4px; }
+.doctor-header p { color: #555; font-size: 0.9rem; line-height: 1.5; }
+.doctor-usage-note {
+    font-size: 0.82rem;
+    color: #888;
+    margin-top: 6px;
+}
+
+.doctor-upload-area {
+    border: 2px dashed #b7e4c7;
+    border-radius: 16px;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    overflow: hidden;
+    background: #f8fdf9;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+}
+.doctor-upload-area:hover { border-color: #52b788; }
+.doctor-upload-icon { font-size: 2.5rem; margin-bottom: 8px; }
+#doctor-upload-placeholder {
+    text-align: center;
+    color: #555;
+    padding: 32px;
+}
+#doctor-upload-placeholder p { font-size: 0.92rem; margin-bottom: 4px; }
+.doctor-upload-hint { font-size: 0.78rem; color: #aaa; }
+#doctor-preview-img {
+    width: 100%;
+    max-height: 340px;
+    object-fit: contain;
+    display: block;
+}
+
+.doctor-result {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f0faf3;
+    border: 1px solid #b7e4c7;
+    border-radius: 14px;
+}
+.doctor-diagnosis {
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: #333;
+    white-space: pre-wrap;
+    margin-bottom: 16px;
+}
+.doctor-remaining {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 12px;
+}
+.doctor-error {
+    color: #c62828;
+    font-size: 0.9rem;
+    padding: 12px;
+    background: #ffebee;
+    border-radius: 8px;
+}
+
+.doctor-modal-body {
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: #333;
+    white-space: pre-wrap;
+    margin-top: 12px;
+}
