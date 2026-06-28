@@ -147,6 +147,40 @@
   td:first-child { width: 34px; color: #bbb; font-weight: 600; font-size: 0.75rem; }
   td:nth-child(2) { width: 44%; }
 
+  /* ── Result badges ───────────────────────────────── */
+  .result-col { width: 70px; }
+  .r-pass    { display:inline-block; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:10px; background:#e8f5e9; color:#1b5e20; }
+  .r-fail    { display:inline-block; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:10px; background:#ffebee; color:#b71c1c; }
+  .r-blocked { display:inline-block; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:10px; background:#fff3e0; color:#e65100; }
+
+  .tester-note {
+    font-size: 0.75rem;
+    color: #888;
+    font-style: italic;
+    margin-top: 2px;
+  }
+
+  .summary-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 16px 0 24px;
+  }
+  .summary-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.82rem;
+  }
+  .summary-chip .count { font-weight: 700; font-size: 1rem; }
+  .count-pass    { color: #2d6a4f; }
+  .count-fail    { color: #c62828; }
+  .count-blocked { color: #e65100; }
+
   /* ── Credentials table ───────────────────────────── */
   .cred-table th { background: #e8f5e9; color: #2d6a4f; }
   .cred-pill {
@@ -218,6 +252,10 @@
       <a class="stage-link" onclick="showStage('stage3', this)">
         <span class="stage-num">Stage 3</span>
         <span class="stage-name">The Tiers</span>
+      </a>
+      <a class="stage-link" onclick="showStage('stage2', this)">
+        <span class="stage-num">Stage 2</span>
+        <span class="stage-name">The Swap</span>
       </a>
     </nav>
   </aside>
@@ -612,6 +650,262 @@
         </table>
       </div>
       <footer>Garden Swap · Stage 3 Test Plan · All passwords are demo credentials only</footer>
+    </section>
+
+    <!-- ════════════════════ STAGE 2 ════════════════════ -->
+    <section id="stage2" class="stage-section">
+      <h1>💬 Stage 2 — The Swap</h1>
+      <p class="stage-subtitle">Swap requests &nbsp;·&nbsp; 1:1 chat &nbsp;·&nbsp; Accept / decline / confirm &nbsp;·&nbsp; Ratings</p>
+
+      <h2>Tester Results — Round 2</h2>
+      <p style="font-size:0.83rem;color:#666;margin-bottom:14px;">Tester: Reshma Rajkumar &nbsp;·&nbsp; Environment: garden-swap.onrender.com (mobile)</p>
+
+      <div class="summary-bar">
+        <div class="summary-chip"><span class="count count-pass">19</span> Passed</div>
+        <div class="summary-chip"><span class="count count-fail">3</span> Failed</div>
+        <div class="summary-chip"><span class="count count-blocked">1</span> Blocked</div>
+        <div class="summary-chip" style="color:#888;">25 total</div>
+      </div>
+
+      <h2>Section A — Fix Verification</h2>
+      <p style="font-size:0.8rem;color:#888;margin-bottom:12px;">8 cases. Bugs reported in Round 1 — verified as fixed in Round 2.</p>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-F01 — Demo credentials work</div>
+        <table><thead><tr><th>#</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>—</td>
+            <td>Open site in private window → Sign In → priya@demo.com / demo1234<br>
+                <em>Expected: Logged in, Sign Out appears, feed shows listings.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-F02 — Login modal closes cleanly</div>
+        <table><thead><tr><th>#</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>—</td>
+            <td>Sign in with valid credentials → modal should close completely, no overlay remaining.<br>
+                <em>Expected: Feed visible, modal gone.</em>
+                <div class="tester-note">Reshma: "When I clicked sign out, the sign in window appeared with saved credentials filled up."</div></td>
+            <td><span class="r-fail">FAIL</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-F03 — Stale session auto-logout</div>
+        <table><thead><tr><th>#</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>—</td>
+            <td>Sign in → DevTools → Application → Local Storage → set gs_token to <code>Bearer invalidtoken123</code> → click + FAB.<br>
+                <em>Expected: Automatically signed out, Sign In modal opens, no "User not found" error.</em>
+                <div class="tester-note">Reshma: "Did not understand."</div></td>
+            <td><span class="r-blocked">BLOCKED</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-F04 — Create a listing</div>
+        <table><thead><tr><th>#</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>—</td>
+            <td>Sign in → tap + FAB → fill title, plant type, condition, upload photo → Submit.<br>
+                <em>Expected: Modal closes, new listing appears in feed.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-F05 — Submit a giveaway swap request</div>
+        <table><thead><tr><th>#</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>—</td>
+            <td>Sign in as faizan@demo.com → open any listing NOT owned by Faizan → Request Swap → select "Request as giveaway" → add message → Submit.<br>
+                <em>Expected: Success alert, redirected to Chats tab, conversation visible.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-F06 — Chats tab loads</div>
+        <table><thead><tr><th>#</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>—</td>
+            <td>After TC-F05 → click 💬 Chats tab.<br>
+                <em>Expected: Conversation card visible with listing title, other party name, "Pending" badge.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-F07 — Open chat and send a message</div>
+        <table><thead><tr><th>#</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>—</td>
+            <td>Click the conversation from TC-F06 → type a message → press Enter or Send.<br>
+                <em>Expected: Message appears as a right-aligned bubble.</em></td>
+            <td><span class="r-fail">FAIL</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-F08 — Accept swap and confirm handoff (full flow)</div>
+        <table><thead><tr><th>#</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>—</td>
+            <td>Open second incognito window → sign in as the lister → Chats → open pending swap → Accept → both parties click "Confirm Handoff Complete".<br>
+                <em>Expected: State changes to Completed, Rate button appears.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <h2>Section B — Previously Blocked Cases</h2>
+      <p style="font-size:0.8rem;color:#888;margin-bottom:12px;">17 cases. Blocked in Round 1 due to swap/chat flow not working. First result.</p>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-04 — Swap Button Visibility (own listing)</div>
+        <table><thead><tr><th>#</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>—</td>
+            <td>Sign in as priya@demo.com → open a listing owned by Priya.<br>
+                <em>Expected: Request Swap button HIDDEN. Delete button visible.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-08 — Submit Swap Request (trade — offer your own plant)</div>
+        <table><thead><tr><th>#</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>—</td>
+            <td>Sign in as faizan@demo.com → create a listing → open someone else's listing → Request Swap → select "Offer a plant" → pick Faizan's listing → Submit.<br>
+                <em>Expected: Success alert, Chats tab, offered plant shown.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-13 to TC-25 — Full Swap Lifecycle</div>
+        <table><thead><tr><th>TC</th><th>Steps &amp; Expected</th><th class="result-col">Result</th></tr></thead><tbody>
+          <tr>
+            <td>TC-13</td>
+            <td>Sign in as lister → Chats → open pending swap → click Accept.<br>
+                <em>Expected: State → "Accepted", Confirm Handoff button appears.</em>
+                <div class="tester-note">Reshma: "Chats were empty."</div></td>
+            <td><span class="r-fail">FAIL</span></td>
+          </tr>
+          <tr>
+            <td>TC-14</td>
+            <td>Create a second swap → sign in as lister → Decline.<br>
+                <em>Expected: State → "Declined", message input hidden.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-15</td>
+            <td>Have an accepted swap → click "Confirm Handoff Complete" as first party.<br>
+                <em>Expected: "Waiting for other party to confirm…"</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-16</td>
+            <td>Switch to second party → click "Confirm Handoff Complete".<br>
+                <em>Expected: State → "Completed", Rate button appears.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-17</td>
+            <td>Click "Rate this swap" → select stars → add comment → Submit.<br>
+                <em>Expected: Rating submitted, chat shows "You rated this swap X ⭐"</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-18</td>
+            <td>Open rate modal → click stars 1 through 5.<br>
+                <em>Expected: Stars highlight cumulatively (click 3 → stars 1, 2, 3 lit).</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-19</td>
+            <td>After rating, go back to the same swap.<br>
+                <em>Expected: Rate button gone, existing rating shown.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-20</td>
+            <td>Sign in as Priya → open Priya's own listing.<br>
+                <em>Expected: Request Swap button NOT visible.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-21</td>
+            <td>Sign out → click 💬 Chats tab.<br>
+                <em>Expected: Redirected to feed, login modal appears.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-22</td>
+            <td>Open a chat with messages from both parties.<br>
+                <em>Expected: Your messages right-aligned, other party left-aligned with name, timestamps visible.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-23</td>
+            <td>Open listing → Request Swap → select "Offer a plant" → leave dropdown on "Select a plant…" → Submit.<br>
+                <em>Expected: Alert: "Please select a plant to offer"</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-24</td>
+            <td>Click Feed → Chats → Profile → Feed in sequence.<br>
+                <em>Expected: Correct view for each tab, active tab highlighted.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>TC-25</td>
+            <td>After swap is accepted → find the listing in the feed.<br>
+                <em>Expected: Listing no longer shows Request Swap button.</em></td>
+            <td><span class="r-pass">PASS</span></td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <h2>Round 1 — Context</h2>
+      <div class="tc-block" style="padding:0;">
+        <table><thead><tr><th>TC</th><th>Round 1 Outcome</th><th>Round 2 Status</th></tr></thead><tbody>
+          <tr><td>TC-01 Login</td><td>Pass (with issue — modal didn't close)</td><td><span class="r-pass">PASS</span> TC-F01/F02</td></tr>
+          <tr><td>TC-04 Swap button</td><td>Blocked (couldn't log in as Priya)</td><td><span class="r-pass">PASS</span> TC-04</td></tr>
+          <tr><td>TC-08 Swap request</td><td>Blocked ("user not found" on listing)</td><td><span class="r-pass">PASS</span> TC-F04, TC-08</td></tr>
+          <tr><td>TC-09 Giveaway</td><td>Fail</td><td><span class="r-pass">PASS</span> TC-F05</td></tr>
+          <tr><td>TC-10 Chats list</td><td>Fail</td><td><span class="r-pass">PASS</span> TC-F06</td></tr>
+          <tr><td>TC-11 Open chat</td><td>Fail</td><td><span class="r-fail">FAIL</span> TC-F07</td></tr>
+          <tr><td>TC-12 Send message</td><td>Fail</td><td><span class="r-fail">FAIL</span> TC-F07</td></tr>
+          <tr><td>TC-13 to TC-25</td><td>All Blocked</td><td>Mixed — see Section B above</td></tr>
+        </tbody></table>
+      </div>
+
+      <h2>Test Credentials</h2>
+      <div class="tc-block">
+        <table class="cred-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Password</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>Priya Sharma</td><td>priya@demo.com</td><td><span class="cred-pill">demo1234</span></td><td>Main / lister account</td></tr>
+            <tr><td>Faizan Ahmed</td><td>faizan@demo.com</td><td><span class="cred-pill">demo1234</span></td><td>Swap requester account</td></tr>
+            <tr><td>Reshma Rajkumar</td><td>reshma.rajkumar@gmail.com</td><td><span class="cred-pill">demo1234</span></td><td>Tester</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <footer>Garden Swap · Stage 2 Test Plan · Round 2 results by Reshma Rajkumar</footer>
     </section>
 
   </main>
