@@ -137,8 +137,66 @@
     font-size: 0.85rem;
     color: #2d6a4f;
     border-bottom: 1px solid #d8f3dc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
   }
   .tc-header.new { background: #e8f5e9; }
+
+  /* ── Tester selector ─────────────────────────────── */
+  .tester-bar {
+    background: white;
+    border: 1px solid #d8f3dc;
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: #555;
+    flex-wrap: wrap;
+  }
+  .tester-pill {
+    border: 2px solid #ccc;
+    background: #f5f5f5;
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1.4;
+  }
+  .tester-pill:hover { background: #eee; border-color: #bbb; }
+  .tester-pill.active-amel  { background: #e8f5e9; border-color: #2d6a4f; color: #2d6a4f; }
+  .tester-pill.active-reshma{ background: #ede7f6; border-color: #5e35b1; color: #5e35b1; }
+
+  /* ── TC check buttons ────────────────────────────── */
+  .tc-checks { display: flex; gap: 5px; flex-shrink: 0; }
+  .check-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #ddd;
+    background: #f5f5f5;
+    color: #bbb;
+    font-size: 0.68rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+  }
+  .check-btn.checked-amel   { background: #e8f5e9; border-color: #2d6a4f; color: #2d6a4f; }
+  .check-btn.checked-reshma { background: #ede7f6; border-color: #5e35b1; color: #5e35b1; }
+  .check-btn.own-btn:hover  { opacity: 0.75; transform: scale(1.1); }
+  .check-btn.other-btn      { cursor: default; pointer-events: none; }
+  .check-btn.syncing        { opacity: 0.45; }
 
   table { width: 100%; border-collapse: collapse; font-size: 0.81rem; }
   th { text-align: left; padding: 7px 12px; background: #fafafa; color: #888; font-weight: 600; border-bottom: 1px solid #eee; }
@@ -262,6 +320,14 @@
 
   <!-- ── Content ──────────────────────────────────── -->
   <main class="content">
+
+    <!-- ── Tester selector ──────────────────────────── -->
+    <div class="tester-bar">
+      <span>Testing as:</span>
+      <button class="tester-pill" data-t="amel"   onclick="setTester('amel')">Amel</button>
+      <button class="tester-pill" data-t="reshma" onclick="setTester('reshma')">Reshma</button>
+      <span id="check-note" style="margin-left:auto;font-size:0.74rem;color:#aaa;">Select your name to check off test cases</span>
+    </div>
 
     <!-- ════════════════════ STAGE 5 ════════════════════ -->
     <section id="stage5" class="stage-section active">
@@ -919,6 +985,123 @@
     link.classList.add('active');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+
+  // ── Collaborative test checkboxes ───────────────────────────────────────
+
+  let currentTester = localStorage.getItem('tp_tester') || null;
+  let allChecks = {}; // { 'stage5-2': { amel: true }, 'stage4-0': { reshma: true }, ... }
+
+  function setTester(name) {
+    currentTester = name;
+    localStorage.setItem('tp_tester', name);
+    updateTesterUI();
+    updateCheckButtons();
+  }
+
+  function updateTesterUI() {
+    document.querySelectorAll('.tester-pill').forEach(p => {
+      p.classList.remove('active-amel', 'active-reshma');
+      if (p.dataset.t === currentTester) p.classList.add('active-' + currentTester);
+    });
+    const note = document.getElementById('check-note');
+    if (note) {
+      note.textContent = currentTester
+        ? 'Click the A or R circle on any test case to mark it done'
+        : 'Select your name to check off test cases';
+    }
+  }
+
+  async function loadChecks() {
+    try {
+      const res = await fetch('/api/test-checks');
+      if (!res.ok) return;
+      const data = await res.json();
+      allChecks = {};
+      for (const c of (data.checks || [])) {
+        if (!allChecks[c.test_id]) allChecks[c.test_id] = {};
+        allChecks[c.test_id][c.tester] = true;
+      }
+      updateCheckButtons();
+    } catch (e) {
+      // silently ignore network errors
+    }
+  }
+
+  function updateCheckButtons() {
+    document.querySelectorAll('.check-btn').forEach(btn => {
+      const tc = btn.dataset.tc;
+      const tester = btn.dataset.tester;
+      const isChecked = !!(allChecks[tc] && allChecks[tc][tester]);
+      btn.classList.remove('checked-amel', 'checked-reshma', 'own-btn', 'other-btn');
+      if (isChecked) btn.classList.add('checked-' + tester);
+      if (currentTester === tester) {
+        btn.classList.add('own-btn');
+        btn.title = isChecked
+          ? 'Click to unmark (you\'ve tested this)'
+          : 'Click to mark as tested by you';
+      } else {
+        btn.classList.add('other-btn');
+        const label = tester.charAt(0).toUpperCase() + tester.slice(1);
+        btn.title = isChecked ? label + ' has tested this' : label + ' hasn\'t tested this yet';
+      }
+    });
+  }
+
+  async function toggleCheck(btn) {
+    if (!currentTester) {
+      alert('Please select your name first (Amel or Reshma) at the top of the page.');
+      return;
+    }
+    if (btn.dataset.tester !== currentTester) return;
+    const tc = btn.dataset.tc;
+    const wasChecked = !!(allChecks[tc] && allChecks[tc][currentTester]);
+    btn.classList.add('syncing');
+    try {
+      const res = await fetch('/api/test-checks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tester: currentTester, test_id: tc, checked: !wasChecked })
+      });
+      if (res.ok) {
+        if (!allChecks[tc]) allChecks[tc] = {};
+        allChecks[tc][currentTester] = !wasChecked;
+        updateCheckButtons();
+      }
+    } catch (e) {
+      // silently ignore
+    } finally {
+      btn.classList.remove('syncing');
+    }
+  }
+
+  function initCheckboxes() {
+    // Assign stable positional IDs to every tc-block
+    document.querySelectorAll('.stage-section').forEach(section => {
+      section.querySelectorAll('.tc-block').forEach((block, i) => {
+        block.dataset.tcId = section.id + '-' + i;
+      });
+    });
+
+    // Inject A / R check buttons into every tc-header
+    document.querySelectorAll('.tc-block').forEach(block => {
+      const header = block.querySelector('.tc-header');
+      if (!header) return;
+      const tcId = block.dataset.tcId;
+      const span = document.createElement('span');
+      span.className = 'tc-checks';
+      span.innerHTML =
+        '<button class="check-btn" data-tester="amel"   data-tc="' + tcId + '" onclick="toggleCheck(this)" title="">A</button>' +
+        '<button class="check-btn" data-tester="reshma" data-tc="' + tcId + '" onclick="toggleCheck(this)" title="">R</button>';
+      header.appendChild(span);
+    });
+
+    updateTesterUI();
+    loadChecks();
+    // Poll for the other person's updates every 30 s
+    setInterval(loadChecks, 30000);
+  }
+
+  document.addEventListener('DOMContentLoaded', initCheckboxes);
 </script>
 </body>
 </html>

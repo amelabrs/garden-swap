@@ -1604,6 +1604,44 @@ async def plant_doctor(image: UploadFile = File(...), user=Depends(get_current_u
     return {"diagnosis": diagnosis, "remaining": remaining}
 
 
+# ── Test-plan collaborative checkboxes ──────────────────────────────────
+
+class TestCheckRequest(BaseModel):
+    tester: str   # 'amel' or 'reshma'
+    test_id: str  # e.g. 's5-access', 's4-cart'
+    checked: bool
+
+
+@app.get("/api/test-checks")
+def get_test_checks():
+    conn = get_db()
+    rows = query(conn, "SELECT tester, test_id FROM test_checks WHERE checked = 1")
+    conn.close()
+    return {"checks": [{"tester": r["tester"], "test_id": r["test_id"]} for r in rows]}
+
+
+@app.post("/api/test-checks")
+def update_test_check(req: TestCheckRequest):
+    if req.tester not in ("amel", "reshma"):
+        raise HTTPException(status_code=400, detail="Invalid tester")
+    conn = get_db()
+    cur = conn.cursor()
+    if DATABASE_URL:
+        cur.execute(
+            "INSERT INTO test_checks (tester, test_id, checked, updated_at) VALUES (%s, %s, %s, NOW()) "
+            "ON CONFLICT (tester, test_id) DO UPDATE SET checked = EXCLUDED.checked, updated_at = NOW()",
+            (req.tester, req.test_id, 1 if req.checked else 0)
+        )
+    else:
+        cur.execute(
+            "INSERT OR REPLACE INTO test_checks (tester, test_id, checked, updated_at) VALUES (?, ?, ?, datetime('now'))",
+            (req.tester, req.test_id, 1 if req.checked else 0)
+        )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
 # ── SPA Fallback ────────────────────────────────────────────────────────
 
 @app.get("/test-plan")

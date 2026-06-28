@@ -202,6 +202,15 @@ if DATABASE_URL:
             );
 
             CREATE INDEX IF NOT EXISTS idx_plant_doctor_user ON plant_doctor_logs(user_id);
+
+            CREATE TABLE IF NOT EXISTS test_checks (
+                id SERIAL PRIMARY KEY,
+                tester TEXT NOT NULL,
+                test_id TEXT NOT NULL,
+                checked INTEGER DEFAULT 1,
+                updated_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(tester, test_id)
+            );
         """)
         conn.commit()
         conn.close()
@@ -293,6 +302,21 @@ if DATABASE_URL:
                     created_at TIMESTAMP DEFAULT NOW()
                 );
                 CREATE INDEX IF NOT EXISTS idx_plant_doctor_user ON plant_doctor_logs(user_id);
+            """)
+        except Exception:
+            conn.rollback()
+
+        # Stage 5: test_checks (collaborative test tracking)
+        try:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS test_checks (
+                    id SERIAL PRIMARY KEY,
+                    tester TEXT NOT NULL,
+                    test_id TEXT NOT NULL,
+                    checked INTEGER DEFAULT 1,
+                    updated_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(tester, test_id)
+                );
             """)
         except Exception:
             conn.rollback()
@@ -511,6 +535,15 @@ else:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
             CREATE INDEX IF NOT EXISTS idx_plant_doctor_user ON plant_doctor_logs(user_id);
+
+            CREATE TABLE IF NOT EXISTS test_checks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tester TEXT NOT NULL,
+                test_id TEXT NOT NULL,
+                checked INTEGER DEFAULT 1,
+                updated_at TEXT DEFAULT (datetime('now')),
+                UNIQUE(tester, test_id)
+            );
         """)
         conn.close()
 
@@ -636,6 +669,15 @@ else:
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
             CREATE INDEX IF NOT EXISTS idx_plant_doctor_user ON plant_doctor_logs(user_id);
+
+            CREATE TABLE IF NOT EXISTS test_checks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tester TEXT NOT NULL,
+                test_id TEXT NOT NULL,
+                checked INTEGER DEFAULT 1,
+                updated_at TEXT DEFAULT (datetime('now')),
+                UNIQUE(tester, test_id)
+            );
         """)
         conn.close()
 
