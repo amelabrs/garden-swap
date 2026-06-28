@@ -3,310 +3,628 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Garden Swap — Test Plan (Stage 5)</title>
+<title>Garden Swap — Test Plans</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7f5; color: #222; }
-  .page { max-width: 780px; margin: 0 auto; padding: 32px 20px 60px; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7f5; color: #222; min-height: 100vh; }
 
-  h1 { font-size: 1.6rem; color: #2d6a4f; margin-bottom: 4px; }
-  .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 32px; }
+  /* ── Layout ─────────────────────────────────────── */
+  .layout { display: flex; min-height: 100vh; }
 
-  h2 { font-size: 1.1rem; color: #2d6a4f; margin: 32px 0 12px; border-bottom: 2px solid #d8f3dc; padding-bottom: 6px; }
-  h3 { font-size: 0.95rem; font-weight: 700; margin: 20px 0 8px; color: #333; }
+  /* ── Sidebar ─────────────────────────────────────── */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: #1b4332;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar-brand {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid #2d6a4f;
+  }
+  .sidebar-brand a {
+    color: #b7e4c7;
+    text-decoration: none;
+    font-size: 0.78rem;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .sidebar-brand a:hover { color: #fff; }
+  .sidebar-brand h2 { color: #fff; font-size: 1rem; font-weight: 700; line-height: 1.3; }
+  .sidebar-brand p { color: #74c69d; font-size: 0.75rem; margin-top: 2px; }
 
-  /* Email card */
+  .stage-nav { padding: 16px 0; flex: 1; }
+  .stage-nav-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #52b788;
+    text-transform: uppercase;
+    padding: 0 20px 8px;
+  }
+
+  .stage-link {
+    display: block;
+    padding: 12px 20px;
+    text-decoration: none;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+    position: relative;
+  }
+  .stage-link:hover { background: rgba(255,255,255,0.06); }
+  .stage-link.active {
+    background: rgba(255,255,255,0.1);
+    border-left-color: #74c69d;
+  }
+  .stage-num { display: block; font-size: 0.7rem; color: #74c69d; font-weight: 600; margin-bottom: 1px; }
+  .stage-name { display: block; font-size: 0.88rem; color: #d8f3dc; font-weight: 500; }
+  .badge-latest {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 700;
+    background: #40916c;
+    color: #d8f3dc;
+    border-radius: 4px;
+    padding: 1px 5px;
+    letter-spacing: 0.05em;
+    margin-top: 3px;
+  }
+
+  /* ── Content area ────────────────────────────────── */
+  .content { flex: 1; min-width: 0; padding: 32px 28px 60px; max-width: 820px; }
+
+  .stage-section { display: none; }
+  .stage-section.active { display: block; }
+
+  h1 { font-size: 1.5rem; color: #2d6a4f; margin-bottom: 4px; }
+  .stage-subtitle { color: #666; font-size: 0.88rem; margin-bottom: 28px; }
+  h2 { font-size: 1rem; color: #2d6a4f; margin: 28px 0 12px; border-bottom: 2px solid #d8f3dc; padding-bottom: 5px; }
+
+  /* ── Email card ──────────────────────────────────── */
   .email-card {
     background: white;
     border: 1px solid #d8f3dc;
     border-radius: 12px;
-    padding: 24px;
+    padding: 22px;
     margin-bottom: 8px;
   }
-  .email-meta { font-size: 0.82rem; color: #666; margin-bottom: 16px; line-height: 1.8; }
+  .email-meta { font-size: 0.8rem; color: #666; margin-bottom: 14px; line-height: 1.8; }
   .email-meta strong { color: #333; }
-  .email-body { font-size: 0.9rem; line-height: 1.8; color: #333; }
+  .email-body { font-size: 0.88rem; line-height: 1.8; color: #333; }
   .email-body p { margin-bottom: 10px; }
   .email-body ol, .email-body ul { padding-left: 20px; margin: 8px 0; }
   .email-body li { margin-bottom: 4px; }
-  .cred-pill {
-    display: inline-block;
-    background: #e8f5e9;
-    border: 1px solid #a5d6a7;
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-family: monospace;
-    font-size: 0.88rem;
-    color: #2d6a4f;
-    margin: 2px 0;
-  }
   .note {
     background: #fff8e1;
     border-left: 3px solid #ffc107;
     padding: 8px 12px;
     border-radius: 0 6px 6px 0;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     color: #666;
     margin: 10px 0;
   }
 
-  /* Section label */
-  .stage-badge {
+  /* ── TC blocks ───────────────────────────────────── */
+  .section-badge {
     display: inline-block;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 700;
     padding: 2px 8px;
     border-radius: 10px;
     margin-left: 8px;
     vertical-align: middle;
   }
-  .badge-new { background: #e8f5e9; color: #1b5e20; }
-  .badge-reg { background: #f3f3f3; color: #888; }
+  .badge-new  { background: #e8f5e9; color: #1b5e20; }
+  .badge-reg  { background: #f3f3f3; color: #888; }
 
-  /* Test cases */
   .tc-block {
     background: white;
     border-radius: 12px;
     border: 1px solid #e0e0e0;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     overflow: hidden;
   }
   .tc-header {
     background: #f1f8f2;
     padding: 10px 16px;
     font-weight: 700;
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     color: #2d6a4f;
     border-bottom: 1px solid #d8f3dc;
   }
   .tc-header.new { background: #e8f5e9; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
-  th { text-align: left; padding: 8px 12px; background: #fafafa; color: #888; font-weight: 600; border-bottom: 1px solid #eee; }
-  td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; line-height: 1.5; }
-  tr:last-child td { border-bottom: none; }
-  td:first-child { width: 36px; color: #aaa; font-weight: 600; }
-  td:nth-child(2) { width: 45%; }
 
-  /* Credentials table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.81rem; }
+  th { text-align: left; padding: 7px 12px; background: #fafafa; color: #888; font-weight: 600; border-bottom: 1px solid #eee; }
+  td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; line-height: 1.5; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { width: 34px; color: #bbb; font-weight: 600; font-size: 0.75rem; }
+  td:nth-child(2) { width: 44%; }
+
+  /* ── Credentials table ───────────────────────────── */
   .cred-table th { background: #e8f5e9; color: #2d6a4f; }
-  .tier-pill {
+  .cred-pill {
     display: inline-block;
-    font-size: 0.75rem;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-weight: 600;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-family: monospace;
+    font-size: 0.83rem;
+    color: #2d6a4f;
   }
+  .tier-pill { display: inline-block; font-size: 0.73rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
   .tier-steward { background: #e8f5e9; color: #1b5e20; }
   .tier-grower  { background: #f1f8e9; color: #33691e; }
   .tier-sprout  { background: #f9fbe7; color: #558b2f; }
 
-  .back-link { display: inline-block; margin-bottom: 24px; color: #2d6a4f; text-decoration: none; font-size: 0.88rem; }
-  .back-link:hover { text-decoration: underline; }
-  footer { margin-top: 40px; text-align: center; font-size: 0.8rem; color: #aaa; }
+  footer { margin-top: 48px; font-size: 0.75rem; color: #bbb; text-align: center; }
+
+  /* ── Mobile: sidebar becomes top tab bar ─────────── */
+  @media (max-width: 680px) {
+    .layout { flex-direction: column; }
+    .sidebar {
+      width: 100%;
+      height: auto;
+      position: static;
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    .sidebar-brand { display: none; }
+    .stage-nav { display: flex; flex-direction: row; padding: 0; white-space: nowrap; }
+    .stage-nav-label { display: none; }
+    .stage-link {
+      border-left: none;
+      border-bottom: 3px solid transparent;
+      padding: 12px 16px;
+      flex-shrink: 0;
+    }
+    .stage-link.active { border-bottom-color: #74c69d; border-left-color: transparent; }
+    .stage-num { display: inline; font-size: 0.68rem; margin-right: 4px; }
+    .stage-name { display: inline; font-size: 0.82rem; }
+    .badge-latest { display: none; }
+    .content { padding: 20px 16px 48px; }
+  }
 </style>
 </head>
 <body>
-<div class="page">
-  <a href="/" class="back-link">← Back to Garden Swap</a>
-  <h1>🌿 Garden Swap — Test Plan</h1>
-  <p class="subtitle">Stage 5: AI Plant Doctor &nbsp;·&nbsp; Please test on <a href="https://garden-swap.onrender.com">garden-swap.onrender.com</a></p>
+<div class="layout">
 
-  <!-- ── Email ───────────────────────────── -->
-  <h2>Email to Reshma</h2>
-  <div class="email-card">
-    <div class="email-meta">
-      <strong>To:</strong> reshma.rajkumar@gmail.com<br>
-      <strong>Subject:</strong> Garden Swap — Stage 5 (AI Plant Doctor) is ready for testing 🌿
+  <!-- ── Sidebar nav ──────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <a href="/">← Garden Swap</a>
+      <h2>Test Plans</h2>
+      <p>garden-swap.onrender.com</p>
     </div>
-    <div class="email-body">
-      <p>Hi Reshma,</p>
-      <p>Stage 5 of Garden Swap is live — we've added an AI-powered Plant Doctor that lets Steward-tier users upload a photo of their plant and get an instant diagnosis: cause, treatment steps, and prevention tips, powered by Claude AI.</p>
-      <p><strong>Test URL:</strong> <a href="https://garden-swap.onrender.com">https://garden-swap.onrender.com</a></p>
-      <div class="note">⚠️ It's on Render free tier — may take 30–60 seconds to wake up on first load.</div>
-      <p><strong>Login for Plant Doctor testing (Steward account):</strong><br>
-        <span class="cred-pill">priya@demo.com</span> &nbsp;/&nbsp; <span class="cred-pill">demo1234</span>
-      </p>
-      <p><strong>Full test plan:</strong> <a href="/test-plan">garden-swap.onrender.com/test-plan</a></p>
-      <p><strong>What's new to test:</strong></p>
-      <ol>
-        <li><strong>🩺 Doctor tab</strong> — visible in the bottom nav for all users</li>
-        <li><strong>Upload a plant photo</strong> — tap the upload area, choose a photo from your phone</li>
-        <li><strong>Get a diagnosis</strong> — tap "Diagnose my plant →" and read the AI response</li>
-        <li><strong>Access control</strong> — log in as rachel@demo.com (Sprout) and confirm the tab shows an upgrade screen</li>
-        <li><strong>Usage counter</strong> — confirm "X diagnoses remaining this month" decrements after each use</li>
-      </ol>
-      <p><strong>Existing features to recheck</strong> (make sure nothing broke):</p>
-      <ul>
-        <li>Shop tab: browse products, add to cart, checkout</li>
-        <li>Swap feed, search, filters</li>
-        <li>Swap requests and chat</li>
-        <li>Wish list and smart match alerts (Grower tier)</li>
-      </ul>
-      <p>Please note anything that feels off — wrong message, button not working, confusing flow, AI response that seems wrong or unhelpful. No detail is too small.</p>
-      <p>Thanks so much!<br>Amel</p>
-    </div>
-  </div>
+    <nav class="stage-nav">
+      <p class="stage-nav-label">Stages</p>
+      <a class="stage-link active" onclick="showStage('stage5', this)">
+        <span class="stage-num">Stage 5</span>
+        <span class="stage-name">AI Plant Doctor</span>
+        <span class="badge-latest">LATEST</span>
+      </a>
+      <a class="stage-link" onclick="showStage('stage4', this)">
+        <span class="stage-num">Stage 4</span>
+        <span class="stage-name">The Shop</span>
+      </a>
+      <a class="stage-link" onclick="showStage('stage3', this)">
+        <span class="stage-num">Stage 3</span>
+        <span class="stage-name">The Tiers</span>
+      </a>
+    </nav>
+  </aside>
 
-  <!-- ── Stage 5 Test Cases ──────────────── -->
-  <h2>Stage 5 — New Test Cases <span class="stage-badge badge-new">NEW</span></h2>
+  <!-- ── Content ──────────────────────────────────── -->
+  <main class="content">
 
-  <div class="tc-block">
-    <div class="tc-header new">TC-09 — Plant Doctor Access Control</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Open 🩺 Doctor tab without logging in</td><td>Locked upgrade screen shown</td></tr>
-      <tr><td>2</td><td>Log in as rachel@demo.com (Sprout) → Doctor tab</td><td>Upgrade prompt with "Upgrade to Steward" button</td></tr>
-      <tr><td>3</td><td>Log in as faizan@demo.com (Grower) → Doctor tab</td><td>Upgrade prompt (Grower is not enough)</td></tr>
-      <tr><td>4</td><td>Log in as priya@demo.com (Steward) → Doctor tab</td><td>Upload UI and Diagnose button appear</td></tr>
-      <tr><td>5</td><td>POST /api/plant-doctor with Rachel's token</td><td>Returns 403 Forbidden</td></tr>
-    </tbody></table>
-  </div>
+    <!-- ════════════════════ STAGE 5 ════════════════════ -->
+    <section id="stage5" class="stage-section active">
+      <h1>🩺 Stage 5 — AI Plant Doctor</h1>
+      <p class="stage-subtitle">Steward-only feature &nbsp;·&nbsp; Claude AI diagnosis &nbsp;·&nbsp; 10 uses/month</p>
 
-  <div class="tc-block">
-    <div class="tc-header new">TC-10 — Plant Doctor Diagnosis Flow</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Log in as Priya (Steward) → Doctor tab</td><td>Upload area and disabled "Diagnose" button shown</td></tr>
-      <tr><td>2</td><td>Tap upload area</td><td>File picker opens</td></tr>
-      <tr><td>3</td><td>Select a clear photo of a plant</td><td>Thumbnail preview appears; Diagnose button activates</td></tr>
-      <tr><td>4</td><td>Tap "Diagnose my plant →"</td><td>Button shows "Analysing…", then result appears inline</td></tr>
-      <tr><td>5</td><td>Read the diagnosis</td><td>Contains: Diagnosis, Likely cause, Treatment, Prevention sections</td></tr>
-      <tr><td>6</td><td>Check usage counter below result</td><td>Shows "N diagnoses remaining this month" (one less than before)</td></tr>
-      <tr><td>7</td><td>Tap "Diagnose another plant"</td><td>Upload area resets, ready for a new photo</td></tr>
-    </tbody></table>
-  </div>
+      <h2>Email to Reshma</h2>
+      <div class="email-card">
+        <div class="email-meta">
+          <strong>To:</strong> reshma.rajkumar@gmail.com<br>
+          <strong>Subject:</strong> Garden Swap — Stage 5 (AI Plant Doctor) is ready for testing 🌿
+        </div>
+        <div class="email-body">
+          <p>Hi Reshma,</p>
+          <p>Stage 5 of Garden Swap is live — we've added an AI-powered Plant Doctor that lets Steward-tier users upload a photo of their plant and get an instant diagnosis: cause, treatment steps, and prevention tips, powered by Claude AI.</p>
+          <p><strong>Test URL:</strong> <a href="https://garden-swap.onrender.com">https://garden-swap.onrender.com</a></p>
+          <div class="note">⚠️ Render free tier — may take 30–60 seconds to wake up on first load.</div>
+          <p><strong>Login for Plant Doctor testing (Steward account):</strong><br>
+            <span class="cred-pill">priya@demo.com</span> / <span class="cred-pill">demo1234</span>
+          </p>
+          <p><strong>What's new to test:</strong></p>
+          <ol>
+            <li><strong>🩺 Doctor tab</strong> — visible in the bottom nav for all users</li>
+            <li><strong>Upload a plant photo</strong> — tap the upload area, choose a photo</li>
+            <li><strong>Get a diagnosis</strong> — tap "Diagnose my plant →" and read the AI response</li>
+            <li><strong>Access control</strong> — log in as rachel@demo.com (Sprout) and confirm the tab shows an upgrade screen</li>
+            <li><strong>Usage counter</strong> — "X diagnoses remaining this month" decrements after each use</li>
+          </ol>
+          <p><strong>Existing features to recheck:</strong> Shop tab, swap feed, chat, wish list, smart match alerts.</p>
+          <p>Thanks so much!<br>Amel</p>
+        </div>
+      </div>
 
-  <div class="tc-block">
-    <div class="tc-header new">TC-11 — Plant Doctor Edge Cases</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Upload a non-plant photo (e.g. a selfie or food)</td><td>AI politely states it cannot see a plant</td></tr>
-      <tr><td>2</td><td>Upload a photo of a healthy, thriving plant</td><td>AI confirms the plant looks healthy</td></tr>
-      <tr><td>3</td><td>Try to tap Diagnose before selecting an image</td><td>Button remains disabled — no submission possible</td></tr>
-      <tr><td>4</td><td>Upload a file larger than 10 MB</td><td>Error: "Image too large. Please upload an image under 10 MB."</td></tr>
-      <tr><td>5</td><td>Reload the page and revisit Doctor tab</td><td>Usage count is still accurate (persisted in DB)</td></tr>
-    </tbody></table>
-  </div>
+      <h2>Stage 5 — New Test Cases <span class="section-badge badge-new">NEW</span></h2>
 
-  <div class="tc-block">
-    <div class="tc-header new">TC-12 — Rate Limit</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Use Plant Doctor 10 times in a calendar month</td><td>All 10 succeed; counter shows "0 remaining"</td></tr>
-      <tr><td>2</td><td>Attempt an 11th diagnosis</td><td>Error: "Monthly limit reached (10 diagnoses/month). Resets on the 1st."</td></tr>
-      <tr><td>3</td><td>Check usage as a different Steward user</td><td>Their own counter is independent (still 10 remaining)</td></tr>
-    </tbody></table>
-  </div>
+      <div class="tc-block">
+        <div class="tc-header new">TC-09 — Plant Doctor Access Control</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Open 🩺 Doctor tab without logging in</td><td>Locked upgrade screen shown</td></tr>
+          <tr><td>2</td><td>Log in as rachel@demo.com (Sprout) → Doctor tab</td><td>Upgrade prompt with "Upgrade to Steward" button</td></tr>
+          <tr><td>3</td><td>Log in as faizan@demo.com (Grower) → Doctor tab</td><td>Upgrade prompt (Grower is not enough)</td></tr>
+          <tr><td>4</td><td>Log in as priya@demo.com (Steward) → Doctor tab</td><td>Upload UI and Diagnose button appear</td></tr>
+          <tr><td>5</td><td>POST /api/plant-doctor with Rachel's token</td><td>Returns 403 Forbidden</td></tr>
+        </tbody></table>
+      </div>
 
-  <!-- ── Stage 4 Regression ─────────────── -->
-  <h2>Stage 4 Regression <span class="stage-badge badge-reg">RECHECK</span></h2>
+      <div class="tc-block">
+        <div class="tc-header new">TC-10 — Diagnosis Flow</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Log in as Priya (Steward) → Doctor tab</td><td>Upload area and disabled "Diagnose" button shown</td></tr>
+          <tr><td>2</td><td>Tap upload area</td><td>File picker opens</td></tr>
+          <tr><td>3</td><td>Select a clear photo of a plant</td><td>Thumbnail preview appears; Diagnose button activates</td></tr>
+          <tr><td>4</td><td>Tap "Diagnose my plant →"</td><td>Button shows "Analysing…", then result appears inline</td></tr>
+          <tr><td>5</td><td>Read the diagnosis</td><td>Contains: Diagnosis, Likely cause, Treatment, Prevention</td></tr>
+          <tr><td>6</td><td>Check usage counter below result</td><td>Shows "N diagnoses remaining this month"</td></tr>
+          <tr><td>7</td><td>Tap "Diagnose another plant"</td><td>Upload area resets, ready for a new photo</td></tr>
+        </tbody></table>
+      </div>
 
-  <div class="tc-block">
-    <div class="tc-header">TC-01 — Product Browse</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Open Shop tab</td><td>12 products load in a grid</td></tr>
-      <tr><td>2</td><td>Tap "Plants" category</td><td>Only plant products shown</td></tr>
-      <tr><td>3</td><td>Tap "Tools" category</td><td>Pruning Shears + Tool Set shown</td></tr>
-      <tr><td>4</td><td>Type "cocopeat" in search</td><td>Cocopeat Block appears</td></tr>
-      <tr><td>5</td><td>Tap a product card</td><td>Detail modal opens with title, price, vendor, description</td></tr>
-      <tr><td>6</td><td>Sign out, open Shop</td><td>Products still visible (no login required to browse)</td></tr>
-    </tbody></table>
-  </div>
+      <div class="tc-block">
+        <div class="tc-header new">TC-11 — Edge Cases</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Upload a non-plant photo (selfie, food)</td><td>AI politely states it cannot see a plant</td></tr>
+          <tr><td>2</td><td>Upload a photo of a healthy thriving plant</td><td>AI confirms the plant looks healthy</td></tr>
+          <tr><td>3</td><td>Tap Diagnose before selecting an image</td><td>Button remains disabled</td></tr>
+          <tr><td>4</td><td>Upload a file larger than 10 MB</td><td>Error: "Image too large. Please upload under 10 MB."</td></tr>
+          <tr><td>5</td><td>Reload the page and revisit Doctor tab</td><td>Usage count persists (shown correctly)</td></tr>
+        </tbody></table>
+      </div>
 
-  <div class="tc-block">
-    <div class="tc-header">TC-02 — Cart</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Add item without logging in</td><td>Sign-in prompt appears</td></tr>
-      <tr><td>2</td><td>Log in, add 1 product</td><td>Cart badge in topbar shows "1"</td></tr>
-      <tr><td>3</td><td>Add second product from different vendor</td><td>Both appear in cart drawer</td></tr>
-      <tr><td>4</td><td>Tap "+" on an item</td><td>Quantity increases, price updates</td></tr>
-      <tr><td>5</td><td>Tap "−" until qty = 0</td><td>Item is removed from cart</td></tr>
-      <tr><td>6</td><td>Tap 🗑️ on an item</td><td>Item removed, badge updates</td></tr>
-      <tr><td>7</td><td>Tap "Clear cart"</td><td>Confirmation prompt → cart empties</td></tr>
-    </tbody></table>
-  </div>
+      <div class="tc-block">
+        <div class="tc-header new">TC-12 — Rate Limit</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Use Plant Doctor 10 times in a calendar month</td><td>All 10 succeed; counter shows "0 remaining"</td></tr>
+          <tr><td>2</td><td>Attempt an 11th diagnosis</td><td>Error: "Monthly limit reached. Resets on the 1st."</td></tr>
+          <tr><td>3</td><td>Check usage as a different Steward user</td><td>Their counter is independent (still 10 remaining)</td></tr>
+        </tbody></table>
+      </div>
 
-  <div class="tc-block">
-    <div class="tc-header">TC-03 — Checkout (no card needed in dev mode)</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Add items to cart</td><td>Cart shows correct total</td></tr>
-      <tr><td>2</td><td>Tap "Checkout →"</td><td>Delivery details modal opens</td></tr>
-      <tr><td>3</td><td>Leave name blank, submit</td><td>Validation error shown</td></tr>
-      <tr><td>4</td><td>Fill name, phone, address → submit</td><td>Success message with order number</td></tr>
-      <tr><td>5</td><td>Check cart after order</td><td>Cart is empty</td></tr>
-    </tbody></table>
-  </div>
+      <h2>Stage 4 Regression <span class="section-badge badge-reg">RECHECK</span></h2>
+      <div class="tc-block">
+        <div class="tc-header">TC-01 to TC-08 — Shop, Cart, Checkout, Vendor, Admin</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Open Shop tab → browse products</td><td>12 products load in a grid</td></tr>
+          <tr><td>2</td><td>Add to cart → open cart drawer</td><td>Cart badge updates; items appear</td></tr>
+          <tr><td>3</td><td>Checkout as Steward</td><td>10% discount applied in cart</td></tr>
+          <tr><td>4</td><td>Register as a new vendor</td><td>"Pending approval" screen shown</td></tr>
+          <tr><td>5</td><td>Approve vendor as amelabrs@gmail.com</td><td>Vendor can add products</td></tr>
+          <tr><td>6</td><td>Open Swap tab, post listing, request swap</td><td>Feed, chat, and swap flow all work</td></tr>
+        </tbody></table>
+      </div>
 
-  <div class="tc-block">
-    <div class="tc-header">TC-04 — Vendor Registration</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Shop → "Sell Here →"</td><td>Vendor registration form opens</td></tr>
-      <tr><td>2</td><td>Submit with empty shop name</td><td>Validation error</td></tr>
-      <tr><td>3</td><td>Submit with valid details</td><td>"Pending approval" screen</td></tr>
-      <tr><td>4</td><td>Log in as amelabrs@gmail.com → Profile</td><td>Admin panel shows vendor as ⏳ Pending</td></tr>
-      <tr><td>5</td><td>Click Approve</td><td>Status changes to ✅ Approved</td></tr>
-      <tr><td>6</td><td>Log back in as vendor → "Sell Here →"</td><td>Vendor dashboard appears</td></tr>
-      <tr><td>7</td><td>Add product with title, price, category</td><td>Product appears in Shop grid</td></tr>
-      <tr><td>8</td><td>Delete product from dashboard</td><td>Product disappears from Shop</td></tr>
-    </tbody></table>
-  </div>
+      <h2>Test Credentials</h2>
+      <div class="tc-block">
+        <table class="cred-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Password</th><th>Tier / Role</th></tr></thead>
+          <tbody>
+            <tr><td>Priya Sharma</td><td>priya@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-steward">🌳 Steward</span> — Plant Doctor tester</td></tr>
+            <tr><td>Faizan Ahmed</td><td>faizan@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-grower">🌿 Grower</span></td></tr>
+            <tr><td>Rachel D'Souza</td><td>rachel@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-sprout">🌱 Sprout</span></td></tr>
+            <tr><td>Deepak Gowda</td><td>deepak@demo.com</td><td><span class="cred-pill">demo1234</span></td><td>Vendor — Green Roots Nursery</td></tr>
+            <tr><td>Amina Begum</td><td>amina@demo.com</td><td><span class="cred-pill">demo1234</span></td><td>Vendor — Bloom &amp; Garden</td></tr>
+            <tr><td>Reshma Rajkumar</td><td>reshma.rajkumar@gmail.com</td><td><span class="cred-pill">demo1234</span></td><td>Tester</td></tr>
+            <tr><td>Amel Rahman</td><td>amelabrs@gmail.com</td><td><span class="cred-pill">demo1234</span></td><td>Admin</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <footer>Garden Swap · Stage 5 Test Plan · All passwords are demo credentials only</footer>
+    </section>
 
-  <div class="tc-block">
-    <div class="tc-header">TC-05 — Steward Discount</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Log in as priya@demo.com (Steward)</td><td>Tier badge shows 🌳 Steward</td></tr>
-      <tr><td>2</td><td>Add items to cart, open cart</td><td>"🌳 Steward 10% discount applied!" banner shows</td></tr>
-      <tr><td>3</td><td>Check total in cart</td><td>Total is 10% less than sum of items</td></tr>
-      <tr><td>4</td><td>Proceed to checkout</td><td>Checkout total matches discounted amount</td></tr>
-    </tbody></table>
-  </div>
+    <!-- ════════════════════ STAGE 4 ════════════════════ -->
+    <section id="stage4" class="stage-section">
+      <h1>🛒 Stage 4 — The Shop</h1>
+      <p class="stage-subtitle">Vendor marketplace &nbsp;·&nbsp; Cart &amp; checkout &nbsp;·&nbsp; Admin approval panel</p>
 
-  <div class="tc-block">
-    <div class="tc-header">TC-06 — Admin Panel</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Log in as amelabrs@gmail.com → Profile</td><td>"⚙️ Admin — Vendor Approvals" section visible</td></tr>
-      <tr><td>2</td><td>Log in as any other user → Profile</td><td>Admin section is NOT visible</td></tr>
-      <tr><td>3</td><td>Approve a pending vendor</td><td>Status → ✅, vendor can now add products</td></tr>
-      <tr><td>4</td><td>Reject a vendor</td><td>Status → ❌, vendor sees rejection screen</td></tr>
-      <tr><td>5</td><td>GET /api/admin/vendors without admin token</td><td>Returns 403 Forbidden</td></tr>
-    </tbody></table>
-  </div>
+      <h2>Email to Reshma</h2>
+      <div class="email-card">
+        <div class="email-meta">
+          <strong>To:</strong> reshma.rajkumar@gmail.com<br>
+          <strong>Subject:</strong> Garden Swap — Stage 4 (The Shop) is ready for testing 🌿
+        </div>
+        <div class="email-body">
+          <p>Hi Reshma,</p>
+          <p>Stage 4 of Garden Swap is live — we've added a full marketplace where vendors can sell plants, pots, soil, fertilisers, tools and seeds. Would love your feedback before we push this to production.</p>
+          <p><strong>Test URL:</strong> <a href="https://garden-swap.onrender.com">https://garden-swap.onrender.com</a></p>
+          <div class="note">⚠️ Render free tier — may take 30–60 seconds to wake up on first load.</div>
+          <p><strong>Your login:</strong> <span class="cred-pill">reshma.rajkumar@gmail.com</span> / <span class="cred-pill">demo1234</span></p>
+          <p><strong>What's new to test:</strong></p>
+          <ol>
+            <li><strong>Shop tab</strong> — browse products across 7 categories</li>
+            <li><strong>Cart</strong> — add items from multiple vendors, adjust quantities</li>
+            <li><strong>Checkout</strong> — enter a delivery address and place an order</li>
+            <li><strong>Vendor registration</strong> — click "Sell Here →" in the Shop tab</li>
+            <li><strong>Steward discount</strong> — upgrade to Steward tier and confirm 10% off</li>
+          </ol>
+          <p>Thanks so much!<br>Amel</p>
+        </div>
+      </div>
 
-  <div class="tc-block">
-    <div class="tc-header">TC-07 — Regression (core swap features)</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Open Swap tab</td><td>Plant listings load</td></tr>
-      <tr><td>2</td><td>Post a new listing</td><td>Appears in feed</td></tr>
-      <tr><td>3</td><td>Request a swap</td><td>Chat opens</td></tr>
-      <tr><td>4</td><td>Add wish list item as Sprout</td><td>Capped at 5 items</td></tr>
-      <tr><td>5</td><td>Notification bell as Grower+</td><td>Shows unread count</td></tr>
-    </tbody></table>
-  </div>
+      <h2>Test Cases</h2>
 
-  <div class="tc-block">
-    <div class="tc-header">TC-08 — Edge Cases</div>
-    <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
-      <tr><td>1</td><td>Register as vendor twice with same account</td><td>"Already registered" error</td></tr>
-      <tr><td>2</td><td>Add qty > stock to cart</td><td>"Only N in stock" error</td></tr>
-      <tr><td>3</td><td>Submit checkout with empty cart</td><td>"Cart is empty" error</td></tr>
-      <tr><td>4</td><td>Open /test-plan URL</td><td>This page loads correctly</td></tr>
-    </tbody></table>
-  </div>
+      <div class="tc-block">
+        <div class="tc-header">TC-01 — Product Browse</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Open Shop tab</td><td>12 products load in a grid</td></tr>
+          <tr><td>2</td><td>Tap "Plants" category</td><td>Only plant products shown</td></tr>
+          <tr><td>3</td><td>Tap "Tools" category</td><td>Pruning Shears + Tool Set shown</td></tr>
+          <tr><td>4</td><td>Type "cocopeat" in search</td><td>Cocopeat Block appears</td></tr>
+          <tr><td>5</td><td>Tap a product card</td><td>Detail modal opens with title, price, vendor, description</td></tr>
+          <tr><td>6</td><td>Sign out, open Shop</td><td>Products still visible (no login required to browse)</td></tr>
+        </tbody></table>
+      </div>
 
-  <!-- ── Credentials ─────────────────────── -->
-  <h2>Test Credentials</h2>
-  <div class="tc-block">
-    <table class="cred-table">
-      <thead><tr><th>Name</th><th>Email</th><th>Password</th><th>Tier / Role</th></tr></thead>
-      <tbody>
-        <tr><td>Priya Sharma</td><td>priya@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-steward">🌳 Steward</span> — use for Plant Doctor</td></tr>
-        <tr><td>Faizan Ahmed</td><td>faizan@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-grower">🌿 Grower</span></td></tr>
-        <tr><td>Rachel D'Souza</td><td>rachel@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-sprout">🌱 Sprout</span></td></tr>
-        <tr><td>Deepak Gowda</td><td>deepak@demo.com</td><td><span class="cred-pill">demo1234</span></td><td>Vendor — Green Roots Nursery</td></tr>
-        <tr><td>Amina Begum</td><td>amina@demo.com</td><td><span class="cred-pill">demo1234</span></td><td>Vendor — Bloom &amp; Garden</td></tr>
-        <tr><td>Reshma Rajkumar</td><td>reshma.rajkumar@gmail.com</td><td><span class="cred-pill">demo1234</span></td><td>Tester</td></tr>
-        <tr><td>Amel Rahman</td><td>amelabrs@gmail.com</td><td><span class="cred-pill">demo1234</span></td><td>Admin</td></tr>
-      </tbody>
-    </table>
-  </div>
+      <div class="tc-block">
+        <div class="tc-header">TC-02 — Cart</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Add item without logging in</td><td>Sign-in prompt appears</td></tr>
+          <tr><td>2</td><td>Log in, add 1 product</td><td>Cart badge shows "1"</td></tr>
+          <tr><td>3</td><td>Add second product from different vendor</td><td>Both appear in cart drawer</td></tr>
+          <tr><td>4</td><td>Tap "+" on an item</td><td>Quantity increases, price updates</td></tr>
+          <tr><td>5</td><td>Tap "−" until qty = 0</td><td>Item is removed from cart</td></tr>
+          <tr><td>6</td><td>Tap 🗑️ on an item</td><td>Item removed, badge updates</td></tr>
+          <tr><td>7</td><td>Tap "Clear cart"</td><td>Confirmation prompt → cart empties</td></tr>
+        </tbody></table>
+      </div>
 
-  <footer>Garden Swap · Stage 5 Test Plan · All passwords are demo credentials only</footer>
+      <div class="tc-block">
+        <div class="tc-header">TC-03 — Checkout</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Add items to cart</td><td>Cart shows correct total</td></tr>
+          <tr><td>2</td><td>Tap "Checkout →"</td><td>Delivery details modal opens</td></tr>
+          <tr><td>3</td><td>Leave name blank, submit</td><td>Validation error shown</td></tr>
+          <tr><td>4</td><td>Fill name, phone, address → submit</td><td>Redirected to Stripe or success message (dev mode)</td></tr>
+          <tr><td>5</td><td>Check cart after order</td><td>Cart is empty</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-04 — Vendor Registration</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Shop → "Sell Here →"</td><td>Vendor registration form opens</td></tr>
+          <tr><td>2</td><td>Submit with empty shop name</td><td>Validation error</td></tr>
+          <tr><td>3</td><td>Submit with valid details</td><td>"Pending approval" screen</td></tr>
+          <tr><td>4</td><td>Log in as amelabrs@gmail.com → Profile</td><td>Admin panel shows vendor as ⏳ Pending</td></tr>
+          <tr><td>5</td><td>Click Approve</td><td>Status → ✅ Approved</td></tr>
+          <tr><td>6</td><td>Log back in as vendor → "Sell Here →"</td><td>Vendor dashboard appears</td></tr>
+          <tr><td>7</td><td>Add product with title, price, category</td><td>Product appears in Shop grid</td></tr>
+          <tr><td>8</td><td>Delete product from dashboard</td><td>Product disappears from Shop</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-05 — Steward Discount</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Log in as priya@demo.com (Steward)</td><td>Tier badge shows 🌳 Steward</td></tr>
+          <tr><td>2</td><td>Add items to cart, open cart</td><td>"🌳 Steward 10% discount applied!" banner shown</td></tr>
+          <tr><td>3</td><td>Check total in cart</td><td>Total is 10% less than item sum</td></tr>
+          <tr><td>4</td><td>Proceed to checkout</td><td>Checkout total matches discounted amount</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-06 — Admin Panel</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Log in as amelabrs@gmail.com → Profile</td><td>"⚙️ Admin — Vendor Approvals" section visible</td></tr>
+          <tr><td>2</td><td>Log in as any other user → Profile</td><td>Admin section is NOT visible</td></tr>
+          <tr><td>3</td><td>Approve a pending vendor</td><td>Status → ✅, vendor can add products</td></tr>
+          <tr><td>4</td><td>Reject a vendor</td><td>Status → ❌, vendor sees rejection screen</td></tr>
+          <tr><td>5</td><td>GET /api/admin/vendors without admin token</td><td>Returns 403 Forbidden</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-07 — Regression</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Open Swap tab</td><td>Plant listings load</td></tr>
+          <tr><td>2</td><td>Post a new listing</td><td>Appears in feed</td></tr>
+          <tr><td>3</td><td>Request a swap</td><td>Chat opens</td></tr>
+          <tr><td>4</td><td>Add wish list item (Sprout)</td><td>Capped at 5 items</td></tr>
+          <tr><td>5</td><td>Notification bell as Grower+</td><td>Shows unread count</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-08 — Edge Cases</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Register as vendor twice</td><td>"Already registered" error</td></tr>
+          <tr><td>2</td><td>Add qty > stock to cart</td><td>"Only N in stock" error</td></tr>
+          <tr><td>3</td><td>Submit checkout with empty cart</td><td>"Cart is empty" error</td></tr>
+        </tbody></table>
+      </div>
+
+      <h2>Test Credentials</h2>
+      <div class="tc-block">
+        <table class="cred-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Password</th><th>Tier / Role</th></tr></thead>
+          <tbody>
+            <tr><td>Priya Sharma</td><td>priya@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-steward">🌳 Steward</span></td></tr>
+            <tr><td>Faizan Ahmed</td><td>faizan@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-grower">🌿 Grower</span></td></tr>
+            <tr><td>Rachel D'Souza</td><td>rachel@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-sprout">🌱 Sprout</span></td></tr>
+            <tr><td>Deepak Gowda</td><td>deepak@demo.com</td><td><span class="cred-pill">demo1234</span></td><td>Vendor — Green Roots Nursery</td></tr>
+            <tr><td>Amina Begum</td><td>amina@demo.com</td><td><span class="cred-pill">demo1234</span></td><td>Vendor — Bloom &amp; Garden</td></tr>
+            <tr><td>Reshma Rajkumar</td><td>reshma.rajkumar@gmail.com</td><td><span class="cred-pill">demo1234</span></td><td>Tester</td></tr>
+            <tr><td>Amel Rahman</td><td>amelabrs@gmail.com</td><td><span class="cred-pill">demo1234</span></td><td>Admin</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <footer>Garden Swap · Stage 4 Test Plan · All passwords are demo credentials only</footer>
+    </section>
+
+    <!-- ════════════════════ STAGE 3 ════════════════════ -->
+    <section id="stage3" class="stage-section">
+      <h1>🌿 Stage 3 — The Tiers</h1>
+      <p class="stage-subtitle">Sprout / Grower / Steward &nbsp;·&nbsp; Wish list &nbsp;·&nbsp; Smart match &nbsp;·&nbsp; Stripe upgrades</p>
+
+      <h2>Email to Reshma</h2>
+      <div class="email-card">
+        <div class="email-meta">
+          <strong>To:</strong> reshma.rajkumar@gmail.com<br>
+          <strong>Subject:</strong> Garden Swap — Stage 3 (The Tiers) is ready for testing 🌿
+        </div>
+        <div class="email-body">
+          <p>Hi Reshma,</p>
+          <p>Thank you again for your thorough Stage 2 testing — it was a huge help!</p>
+          <p>We've now completed Stage 3: The Tiers, which adds subscription plans and several new features. I'd love your help testing it.</p>
+          <p><strong>Test URL:</strong> <a href="https://garden-swap.onrender.com">https://garden-swap.onrender.com</a></p>
+          <div class="note">Note: This is a mobile app. Please test on your phone.</div>
+          <p><strong>What's new in Stage 3:</strong></p>
+          <ul>
+            <li>🌱 Sprout / 🌿 Grower / 🌳 Steward tier system — Sprout is free with limits, Grower and Steward are paid</li>
+            <li>Sprout accounts limited to 3 active listings and 5 wish list items — paywall appears when you hit a limit</li>
+            <li>Ad banners in the feed (Sprout only) — Grower/Steward get an ad-free experience</li>
+            <li>🎯 Wish list — add plants you're looking for to your profile</li>
+            <li>🔔 Smart match notifications — Grower/Steward get alerted when a wished-for plant is listed nearby</li>
+            <li>⚙️ Advanced filters (light needs, rarity, size, min rating) — Grower/Steward only</li>
+            <li>Stripe upgrade flow for paid plans</li>
+          </ul>
+          <p><strong>Your login details:</strong><br>
+            Reshma (you): <span class="cred-pill">reshma.rajkumar@gmail.com</span> / <span class="cred-pill">demo1234</span> (🌱 Sprout)<br>
+            Priya: <span class="cred-pill">priya@demo.com</span> / <span class="cred-pill">demo1234</span> (🌳 Steward)<br>
+            Faizan: <span class="cred-pill">faizan@demo.com</span> / <span class="cred-pill">demo1234</span> (🌿 Grower)
+          </p>
+          <p>TC-S3-20 to TC-S3-23 involve switching between accounts to test smart match notifications — steps are all laid out below.</p>
+          <p>Thanks so much!<br>Amel</p>
+        </div>
+      </div>
+
+      <h2>Test Cases</h2>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-S3-01 to 03 — Tier Display</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Log in as rachel@demo.com → Profile</td><td>🌱 Sprout badge shown</td></tr>
+          <tr><td>2</td><td>Log in as faizan@demo.com → Profile</td><td>🌿 Grower badge shown</td></tr>
+          <tr><td>3</td><td>Log in as priya@demo.com → Profile</td><td>🌳 Steward badge shown</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-S3-04 to 07 — Sprout Listing Limit (max 3)</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>4</td><td>Log in as Rachel (Sprout) → post a listing</td><td>Listing created successfully</td></tr>
+          <tr><td>5</td><td>Post listings until you reach 3 active</td><td>3rd listing created successfully</td></tr>
+          <tr><td>6</td><td>Try to post a 4th listing</td><td>Paywall modal appears: "Upgrade to Grower"</td></tr>
+          <tr><td>7</td><td>Dismiss the paywall modal</td><td>Modal closes, no listing created</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-S3-08 to 10 — Wish List Limit (max 5 for Sprout)</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>8</td><td>Log in as Rachel → Profile → add 5 wish list items</td><td>All 5 added successfully</td></tr>
+          <tr><td>9</td><td>Try to add a 6th wish list item</td><td>Paywall modal appears: "Upgrade to Grower"</td></tr>
+          <tr><td>10</td><td>Log in as Priya (Steward) → add 6+ wish list items</td><td>All items added with no limit</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-S3-11 to 13 — Ad Banners (Sprout only)</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>11</td><td>Log in as Rachel (Sprout) → open Swap feed</td><td>Ad banners appear between listings</td></tr>
+          <tr><td>12</td><td>Log in as Faizan (Grower) → open Swap feed</td><td>No ad banners in the feed</td></tr>
+          <tr><td>13</td><td>Log in as Priya (Steward) → open Swap feed</td><td>No ad banners in the feed</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-S3-14 to 16 — Wish List (Grower/Steward)</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>14</td><td>Log in as Faizan (Grower) → Profile → add "Monstera" to wish list</td><td>Item appears in wish list</td></tr>
+          <tr><td>15</td><td>Reload the page → check Profile</td><td>Wish list item still present</td></tr>
+          <tr><td>16</td><td>Tap the ✕ next to the wish list item</td><td>Item is removed from the list</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-S3-17 to 19 — Advanced Filters (Grower/Steward only)</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>17</td><td>Log in as Rachel (Sprout) → open filter panel</td><td>Advanced filters (light needs, rarity, size, min rating) are locked or hidden</td></tr>
+          <tr><td>18</td><td>Log in as Faizan (Grower) → open filter panel</td><td>All advanced filters are available</td></tr>
+          <tr><td>19</td><td>Apply "Full Sun" + "Rare" filter as Faizan</td><td>Only matching listings are shown in the feed</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-S3-20 to 23 — Smart Match Notifications (multi-account)</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>20</td><td>Log in as Faizan (Grower) → Profile → add "Fiddle Leaf Fig" to wish list</td><td>Added to wish list</td></tr>
+          <tr><td>21</td><td>Log out → log in as Rachel (Sprout) → post a "Fiddle Leaf Fig" listing</td><td>Listing created in feed</td></tr>
+          <tr><td>22</td><td>Log out → log in as Faizan → check notification bell</td><td>Smart match alert: "A Fiddle Leaf Fig was listed near you!"</td></tr>
+          <tr><td>23</td><td>Repeat TC-S3-20 to 22 with Priya (Steward) as the wisher</td><td>Priya also receives a smart match notification independently</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header">TC-S3-24 to 27 — Stripe Upgrade Flow</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>24</td><td>Log in as Rachel (Sprout) → Profile → tap "Upgrade to Grower"</td><td>Stripe checkout page opens</td></tr>
+          <tr><td>25</td><td>Enter test card: 4242 4242 4242 4242 / 12/26 / 123</td><td>Payment succeeds</td></tr>
+          <tr><td>26</td><td>Redirected back to Garden Swap</td><td>Tier badge updates to 🌿 Grower</td></tr>
+          <tr><td>27</td><td>Open Swap feed, check filters, check wish list</td><td>Ad banners gone, advanced filters unlocked, wish list limit raised</td></tr>
+        </tbody></table>
+      </div>
+
+      <h2>Stage 2 Regression <span class="section-badge badge-reg">RECHECK</span></h2>
+      <div class="tc-block">
+        <div class="tc-header">Core swap features</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Post a new plant listing</td><td>Appears in the feed</td></tr>
+          <tr><td>2</td><td>Request a swap from another user's listing</td><td>Chat opens</td></tr>
+          <tr><td>3</td><td>Accept and confirm a swap</td><td>Swap status updates for both users</td></tr>
+          <tr><td>4</td><td>Rate the other user after swap</td><td>Rating saved, shown on profile</td></tr>
+        </tbody></table>
+      </div>
+
+      <h2>Test Credentials</h2>
+      <div class="tc-block">
+        <table class="cred-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Password</th><th>Tier</th></tr></thead>
+          <tbody>
+            <tr><td>Priya Sharma</td><td>priya@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-steward">🌳 Steward</span></td></tr>
+            <tr><td>Faizan Ahmed</td><td>faizan@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-grower">🌿 Grower</span></td></tr>
+            <tr><td>Rachel D'Souza</td><td>rachel@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-sprout">🌱 Sprout</span></td></tr>
+            <tr><td>Reshma Rajkumar</td><td>reshma.rajkumar@gmail.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-sprout">🌱 Sprout</span> — Tester</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <footer>Garden Swap · Stage 3 Test Plan · All passwords are demo credentials only</footer>
+    </section>
+
+  </main>
 </div>
+
+<script>
+  function showStage(id, link) {
+    document.querySelectorAll('.stage-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.stage-link').forEach(l => l.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    link.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
 </body>
 </html>
