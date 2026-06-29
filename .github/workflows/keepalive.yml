@@ -1,0 +1,19 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # Runs at minutes 0, 14, 28, 42, 56 of every hour — every ~14 minutes
+    - cron: '0,14,28,42,56 * * * *'
+  workflow_dispatch: # allow manual trigger from GitHub UI
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Garden Swap
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://garden-swap.onrender.com/health)
+          echo "Response: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Warning: got HTTP $STATUS — app may still be waking up"
+          fi

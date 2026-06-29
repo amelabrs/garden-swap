@@ -1604,6 +1604,13 @@ async def plant_doctor(image: UploadFile = File(...), user=Depends(get_current_u
     return {"diagnosis": diagnosis, "remaining": remaining}
 
 
+# ── Health / keep-alive ─────────────────────────────────────────────────
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 # ── Test-plan collaborative checkboxes ──────────────────────────────────
 
 class TestCheckRequest(BaseModel):
