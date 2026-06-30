@@ -211,6 +211,21 @@ if DATABASE_URL:
                 updated_at TIMESTAMP DEFAULT NOW(),
                 UNIQUE(tester, test_id)
             );
+
+            CREATE TABLE IF NOT EXISTS reviews (
+                id SERIAL PRIMARY KEY,
+                order_item_id INTEGER NOT NULL REFERENCES order_items(id),
+                reviewer_id INTEGER NOT NULL REFERENCES users(id),
+                vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+                product_id INTEGER NOT NULL REFERENCES products(id),
+                rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+                comment TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(order_item_id, reviewer_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
+            CREATE INDEX IF NOT EXISTS idx_reviews_vendor ON reviews(vendor_id);
         """)
         conn.commit()
         conn.close()
@@ -316,6 +331,40 @@ if DATABASE_URL:
                     checked INTEGER DEFAULT 1,
                     updated_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(tester, test_id)
+                );
+            """)
+        except Exception:
+            conn.rollback()
+
+        # Stage 6: reviews
+        try:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS reviews (
+                    id SERIAL PRIMARY KEY,
+                    order_item_id INTEGER NOT NULL REFERENCES order_items(id),
+                    reviewer_id INTEGER NOT NULL REFERENCES users(id),
+                    vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+                    product_id INTEGER NOT NULL REFERENCES products(id),
+                    rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+                    comment TEXT DEFAULT '',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(order_item_id, reviewer_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
+                CREATE INDEX IF NOT EXISTS idx_reviews_vendor ON reviews(vendor_id);
+            """)
+        except Exception:
+            conn.rollback()
+
+        # Stage 6: push_subscriptions
+        try:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS push_subscriptions (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    subscription_json TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(user_id)
                 );
             """)
         except Exception:
@@ -544,6 +593,33 @@ else:
                 updated_at TEXT DEFAULT (datetime('now')),
                 UNIQUE(tester, test_id)
             );
+
+            CREATE TABLE IF NOT EXISTS reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_item_id INTEGER NOT NULL,
+                reviewer_id INTEGER NOT NULL,
+                vendor_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+                comment TEXT DEFAULT '',
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (order_item_id) REFERENCES order_items(id),
+                FOREIGN KEY (reviewer_id) REFERENCES users(id),
+                FOREIGN KEY (vendor_id) REFERENCES vendors(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                UNIQUE(order_item_id, reviewer_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
+            CREATE INDEX IF NOT EXISTS idx_reviews_vendor ON reviews(vendor_id);
+
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                subscription_json TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id)
+            );
         """)
         conn.close()
 
@@ -677,6 +753,33 @@ else:
                 checked INTEGER DEFAULT 1,
                 updated_at TEXT DEFAULT (datetime('now')),
                 UNIQUE(tester, test_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_item_id INTEGER NOT NULL,
+                reviewer_id INTEGER NOT NULL,
+                vendor_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+                comment TEXT DEFAULT '',
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (order_item_id) REFERENCES order_items(id),
+                FOREIGN KEY (reviewer_id) REFERENCES users(id),
+                FOREIGN KEY (vendor_id) REFERENCES vendors(id),
+                FOREIGN KEY (product_id) REFERENCES products(id),
+                UNIQUE(order_item_id, reviewer_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
+            CREATE INDEX IF NOT EXISTS idx_reviews_vendor ON reviews(vendor_id);
+
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                subscription_json TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id)
             );
         """)
         conn.close()

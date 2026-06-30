@@ -40,6 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     loadFeed();
     checkUrlParams();
+    registerServiceWorker();
+    if (token) registerPushIfSupported();
 });
 
 function checkUrlParams() {
@@ -492,6 +494,7 @@ async function handleAuth(e) {
 
             updateAuthUI();
             closeModal('auth-modal');
+            registerPushIfSupported();
             loadFeed();
         } catch (err) {
             alert('Login failed');
@@ -652,6 +655,13 @@ async function loadProfile() {
             </div>
 
             ${adminVendors ? renderAdminPanel(adminVendors) : ''}
+
+            <!-- Push Notifications -->
+            <div class="profile-section">
+                <h3 style="margin-bottom:8px;">🔔 Push Notifications</h3>
+                <p style="font-size:0.83rem;color:#666;margin-bottom:10px;">Get notified for swap requests, accepted swaps, and plant matches — even when the app is closed.</p>
+                <button class="btn btn-outline-small" onclick="enablePushNotifications()">Enable Notifications</button>
+            </div>
         `;
     } catch (err) {
         document.getElementById('profile-content').innerHTML = '<p style="padding:20px">Failed to load profile.</p>';
@@ -1254,6 +1264,9 @@ async function loadShop() {
     loading?.classList.remove('hidden');
     empty?.classList.add('hidden');
 
+    // Ratings load in parallel — cards read productRatings after both settle
+    loadProductRatings();
+
     try {
         const res = await fetch(url);
         shopProducts = await res.json();
@@ -1278,11 +1291,29 @@ function filterShop(cat) {
     loadShop();
 }
 
+let productRatings = {}; // { productId: { avg, count } } — loaded once per shop visit
+
+async function loadProductRatings() {
+    try {
+        const res = await fetch(`${API}/api/shop/products/ratings`);
+        if (res.ok) productRatings = await res.json();
+    } catch (_) {}
+}
+
+function starsHtml(avg, count) {
+    if (!avg) return '';
+    const full = Math.round(avg);
+    const stars = '★'.repeat(full) + '☆'.repeat(5 - full);
+    return `<span class="product-stars" title="${avg} / 5">${stars} <span class="stars-count">(${count})</span></span>`;
+}
+
 function renderProductCard(p) {
     const stockBadge = p.stock_qty > 0
         ? `<span class="stock-badge stock-low">${p.stock_qty} left</span>`
         : `<span class="stock-badge stock-ok">In Stock</span>`;
     const img = p.image_url || '';
+    const rating = productRatings[String(p.id)];
+    const stars = rating ? starsHtml(rating.avg, rating.count) : '';
     return `
         <div class="product-card" onclick="openProductDetail(${p.id})">
             <div class="product-card-img-wrap">
@@ -1292,6 +1323,7 @@ function renderProductCard(p) {
             <div class="product-card-body">
                 <div class="product-card-title">${escapeHtml(p.title)}</div>
                 <div class="product-card-shop">${escapeHtml(p.shop_name)}</div>
+                ${stars}
                 <div class="product-card-footer">
                     <span class="product-price-tag">₹${p.price.toLocaleString('en-IN')}</span>
                     ${stockBadge}
@@ -1327,10 +1359,43 @@ async function openProductDetail(productId) {
         }
 
         document.getElementById('product-detail-qty').value = 1;
+
+        // Load reviews asynchronously
+        const reviewSection = document.getElementById('product-reviews-section');
+        reviewSection.innerHTML = '<p style="font-size:0.8rem;color:#aaa;margin-top:14px;">Loading reviews…</p>';
         openModal('product-detail-modal');
+        loadProductReviews(productId, reviewSection);
     } catch (err) {
         alert('Failed to load product');
     }
+}
+
+async function loadProductReviews(productId, container) {
+    try {
+        const res = await fetch(`${API}/api/products/${productId}/reviews`);
+        if (!res.ok) { container.innerHTML = ''; return; }
+        const data = await res.json();
+        if (data.count === 0) {
+            container.innerHTML = '<p style="font-size:0.8rem;color:#bbb;margin-top:14px;">No reviews yet — be the first!</p>';
+            return;
+        }
+        const avgStars = starsHtml(data.avg_rating, data.count);
+        const rows = data.reviews.map(r => `
+            <div class="review-row">
+                <div class="review-header">
+                    <span class="review-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+                    <span class="review-author">${escapeHtml(r.display_name || r.username)}</span>
+                    <span class="review-date">${new Date(r.created_at).toLocaleDateString('en-IN')}</span>
+                </div>
+                ${r.comment ? `<p class="review-comment">${escapeHtml(r.comment)}</p>` : ''}
+            </div>
+        `).join('');
+        container.innerHTML = `
+            <div class="reviews-section">
+                <div class="reviews-title">Reviews &nbsp; ${avgStars}</div>
+                ${rows}
+            </div>`;
+    } catch (_) { container.innerHTML = ''; }
 }
 
 function changeProductQty(delta) {
@@ -1567,9 +1632,10 @@ async function handleCheckout(e) {
         } else {
             // Dev mode: order placed directly
             closeModal('checkout-modal');
+            const reviewableItems = cartData.items ? [...cartData.items] : [];
             cartData = { items: [], total: 0, count: 0 };
             updateCartBadge(0);
-            alert(`✅ Order #${data.order_id} placed! The vendor will contact you for delivery.`);
+            showOrderSuccessBanner(data.order_id, reviewableItems);
             switchView('shop');
         }
     } catch (err) {
@@ -1662,16 +1728,27 @@ function renderVendorRejected() {
 
 async function renderVendorDashboard(vendor) {
     try {
-        const [productsRes, ordersRes] = await Promise.all([
+        const [productsRes, ordersRes, statsRes] = await Promise.all([
             fetch(`${API}/api/shop/vendor/products`, { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch(`${API}/api/shop/vendor/orders`, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`${API}/api/shop/vendor/orders`,   { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`${API}/api/shop/vendor/stats`,    { headers: { 'Authorization': `Bearer ${token}` } }),
         ]);
         const { products } = await productsRes.json();
         const orders = await ordersRes.json();
+        const stats = await statsRes.json();
+
+        // Build a quick lookup: product_id → units_sold + revenue
+        const soldMap = {};
+        (stats.product_stats || []).forEach(s => { soldMap[s.product_id] = s; });
 
         const productRows = products.length === 0
             ? '<p style="color:#888;">No products yet. Add your first product!</p>'
-            : products.map(p => `
+            : products.map(p => {
+                const s = soldMap[p.id];
+                const soldBadge = s
+                    ? `<span class="vendor-sold-badge">${s.units_sold} sold · ₹${Number(s.revenue).toLocaleString('en-IN')}</span>`
+                    : `<span class="vendor-sold-badge vendor-sold-zero">No sales yet</span>`;
+                return `
                 <div class="vendor-product-row ${!p.is_active ? 'product-inactive' : ''}">
                     <img src="${escapeHtml(p.image_url || '')}" alt="${escapeHtml(p.title)}" class="vendor-product-thumb" onerror="this.style.display='none'">
                     <div class="vendor-product-info">
@@ -1679,10 +1756,11 @@ async function renderVendorDashboard(vendor) {
                         <span class="product-cat-chip" style="font-size:0.75rem;">${escapeHtml(p.category)}</span><br>
                         <span style="color:#2d6a4f;font-weight:600;">₹${p.price.toLocaleString('en-IN')}</span>
                         <span style="color:#888;font-size:0.8rem;"> · ${p.stock_qty === 0 ? 'Unlimited' : p.stock_qty + ' in stock'}</span>
+                        ${soldBadge}
                     </div>
                     <button class="btn-text btn-text-danger" onclick="deleteVendorProduct(${p.id})">Delete</button>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
 
         const orderRows = orders.length === 0
             ? '<p style="color:#888;">No orders yet.</p>'
@@ -1691,7 +1769,7 @@ async function renderVendorDashboard(vendor) {
                     <div><strong>${escapeHtml(o.title)}</strong> × ${o.quantity}</div>
                     <div style="color:#2d6a4f;font-weight:600;">₹${o.subtotal.toLocaleString('en-IN')}</div>
                     <div style="font-size:0.8rem;color:#666;">${escapeHtml(o.shipping_name)} · ${escapeHtml(o.shipping_phone || '')} · <span class="badge badge-state-${o.status}">${o.status}</span></div>
-                    <div style="font-size:0.75rem;color:#aaa;">${new Date(o.created_at || o.order_date).toLocaleDateString()}</div>
+                    <div style="font-size:0.75rem;color:#aaa;">${new Date(o.created_at || o.order_date).toLocaleDateString('en-IN')}</div>
                     <div style="font-size:0.8rem;color:#555;">${escapeHtml(o.shipping_address)}</div>
                 </div>
             `).join('');
@@ -1704,6 +1782,25 @@ async function renderVendorDashboard(vendor) {
                         <p style="color:#666;font-size:0.85rem;">${escapeHtml(vendor.description || '')}</p>
                     </div>
                     <button class="btn btn-primary btn-sm" onclick="openModal('add-product-modal')">+ Add Product</button>
+                </div>
+
+                <div class="vendor-stats-bar">
+                    <div class="vendor-stat">
+                        <span class="vendor-stat-value">₹${Number(stats.total_revenue).toLocaleString('en-IN')}</span>
+                        <span class="vendor-stat-label">Total Revenue</span>
+                    </div>
+                    <div class="vendor-stat">
+                        <span class="vendor-stat-value">${stats.total_orders}</span>
+                        <span class="vendor-stat-label">Orders</span>
+                    </div>
+                    <div class="vendor-stat">
+                        <span class="vendor-stat-value">${stats.items_sold}</span>
+                        <span class="vendor-stat-label">Items Sold</span>
+                    </div>
+                    <div class="vendor-stat">
+                        <span class="vendor-stat-value">${products.length}</span>
+                        <span class="vendor-stat-label">Products Listed</span>
+                    </div>
                 </div>
 
                 <div class="vendor-section">
@@ -1799,6 +1896,74 @@ async function deleteVendorProduct(productId) {
         }
     } catch (err) {
         alert('Failed to delete product');
+    }
+}
+
+// ── Stage 6B: Reviews ───────────────────────────────────────────────────
+
+let pendingReview = null; // { order_item_id, product_id, vendor_id, title }
+let reviewStarValue = 0;
+
+function showOrderSuccessBanner(orderId, items) {
+    const banner = document.createElement('div');
+    banner.className = 'order-success-banner';
+    const itemLinks = items.map((it, i) => `
+        <button class="btn-rate-item" onclick="openReviewModal({
+            order_item_id: ${it.order_item_id || it.id || i},
+            product_id: ${it.product_id || it.id},
+            vendor_id: ${it.vendor_id || 0},
+            title: '${(it.title || it.name || 'Product').replace(/'/g, "\\'")}'
+        }, this.closest('.order-success-banner'))">
+            Rate: ${escapeHtml(it.title || it.name || 'Product')} ★
+        </button>`).join('');
+    banner.innerHTML = `
+        <div class="order-success-inner">
+            <div class="order-success-title">✅ Order #${orderId} placed!</div>
+            <p>The vendor will contact you for delivery. Got a moment to rate your items?</p>
+            <div class="order-rate-items">${itemLinks || ''}</div>
+            <button class="btn-text" onclick="this.closest('.order-success-banner').remove()" style="margin-top:8px;">Dismiss</button>
+        </div>`;
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 60000);
+}
+
+function openReviewModal(item, bannerEl) {
+    pendingReview = item;
+    reviewStarValue = 0;
+    document.getElementById('review-modal-product').textContent = `Rating for: ${item.title}`;
+    document.getElementById('review-comment').value = '';
+    document.getElementById('review-msg').textContent = '';
+    document.querySelectorAll('.shop-star').forEach(b => b.classList.remove('active'));
+    openModal('review-modal');
+}
+
+function setReviewStar(val) {
+    reviewStarValue = val;
+    document.querySelectorAll('.shop-star').forEach(b => {
+        b.classList.toggle('active', Number(b.dataset.v) <= val);
+    });
+}
+
+async function submitReview() {
+    if (!pendingReview) return;
+    if (!reviewStarValue) { alert('Please select a star rating.'); return; }
+    if (!token) { alert('Please sign in to leave a review.'); return; }
+    const comment = document.getElementById('review-comment').value.trim();
+    const res = await fetch(`${API}/api/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ ...pendingReview, rating: reviewStarValue, comment })
+    });
+    const data = await res.json();
+    const msg = document.getElementById('review-msg');
+    if (res.ok) {
+        msg.textContent = 'Review submitted — thank you!';
+        msg.style.color = '#2d6a4f';
+        setTimeout(() => closeModal('review-modal'), 1500);
+        loadProductRatings();
+    } else {
+        msg.textContent = data.detail || 'Could not submit review.';
+        msg.style.color = '#c62828';
     }
 }
 
@@ -1903,4 +2068,66 @@ async function submitToDoctor() {
         btn.disabled = false;
         btn.textContent = 'Diagnose my plant →';
     }
+}
+
+// ── Stage 6C: Push Notifications ───────────────────────────────────────
+
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+}
+
+async function registerPushIfSupported() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (Notification.permission === 'denied') return;
+    try {
+        // Fetch VAPID public key
+        const keyRes = await fetch(`${API}/api/push/vapid-public-key`);
+        if (!keyRes.ok) return;
+        const { key } = await keyRes.json();
+        if (!key) return;
+
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+
+        if (!sub) {
+            // Request permission only when already granted or on explicit action
+            if (Notification.permission !== 'granted') return;
+            sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: _urlBase64ToUint8Array(key)
+            });
+        }
+
+        // Send subscription to backend
+        await fetch(`${API}/api/push/subscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ subscription: sub.toJSON() })
+        });
+    } catch (_) {}
+}
+
+async function enablePushNotifications() {
+    if (!('Notification' in window)) {
+        alert('Push notifications are not supported on this device.');
+        return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+        await registerPushIfSupported();
+        alert('✅ Notifications enabled! You\'ll get alerts for swap requests and matches.');
+    } else {
+        alert('Notifications permission was denied. You can enable it in your browser settings.');
+    }
+}
+
+function _urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    const output = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; ++i) output[i] = raw.charCodeAt(i);
+    return output;
 }

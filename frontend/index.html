@@ -471,7 +471,27 @@
                     <button onclick="changeProductQty(1)">+</button>
                     <button class="btn btn-primary" onclick="addToCartFromModal()">Add to Cart 🛒</button>
                 </div>
+                <div id="product-reviews-section" class="product-reviews-section"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- ── Review Modal ─────────────────────────────────────────── -->
+    <div id="review-modal" class="modal hidden">
+        <div class="modal-content auth-content">
+            <button class="modal-close" onclick="closeModal('review-modal')">&times;</button>
+            <h2>⭐ Leave a Review</h2>
+            <p id="review-modal-product" style="font-size:0.88rem;color:#555;margin-bottom:16px;"></p>
+            <div class="shop-star-row" id="review-stars">
+                <button class="shop-star" data-v="1" onclick="setReviewStar(1)">★</button>
+                <button class="shop-star" data-v="2" onclick="setReviewStar(2)">★</button>
+                <button class="shop-star" data-v="3" onclick="setReviewStar(3)">★</button>
+                <button class="shop-star" data-v="4" onclick="setReviewStar(4)">★</button>
+                <button class="shop-star" data-v="5" onclick="setReviewStar(5)">★</button>
+            </div>
+            <textarea id="review-comment" placeholder="Optional comment…" rows="3" style="width:100%;margin-top:12px;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.9rem;resize:vertical;"></textarea>
+            <button class="btn btn-primary" style="margin-top:14px;width:100%;" onclick="submitReview()">Submit Review</button>
+            <p id="review-msg" style="font-size:0.85rem;margin-top:8px;text-align:center;color:#2d6a4f;"></p>
         </div>
     </div>
 

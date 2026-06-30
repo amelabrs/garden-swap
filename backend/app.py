@@ -6,6 +6,11 @@ import json
 import base64
 import stripe
 import anthropic
+try:
+    from pywebpush import webpush, WebPushException
+    WEBPUSH_AVAILABLE = True
+except ImportError:
+    WEBPUSH_AVAILABLE = False
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Header, Query, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -34,6 +39,9 @@ STRIPE_PRICE_GROWER = os.environ.get("STRIPE_PRICE_GROWER", "")
 STRIPE_PRICE_STEWARD = os.environ.get("STRIPE_PRICE_STEWARD", "")
 APP_URL = os.environ.get("APP_URL", "http://localhost:8001")
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "amelabrs@gmail.com")
+
+VAPID_PUBLIC_KEY  = os.environ.get("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")  # base64-encoded PEM
 
 # Sprout tier limits
 SPROUT_MAX_LISTINGS = 3
@@ -305,6 +313,7 @@ def _check_smart_match(conn, listing_id, title, listing_lat, listing_lng):
                             f"INSERT INTO notifications (user_id, type, body, listing_id) VALUES ({P}, 'smart_match', {P}, {P})",
                             (item["user_id"], body, listing_id))
                         notified_users.add(item["user_id"])
+                        _send_push(item["user_id"], "🌿 Plant Match!", body, "/")
     except Exception:
         pass  # Never fail listing creation due to notification error
 
@@ -448,7 +457,10 @@ def create_swap(req: SwapRequest, user=Depends(get_current_user)):
             (swap_id, user["id"], req.message.strip()[:250]))
 
     conn.commit()
+    lister_id = listing["user_id"]
+    listing_title = listing.get("title", "your listing")
     conn.close()
+    _send_push(lister_id, "🌱 New Swap Request!", f"Someone wants to swap for your {listing_title}!", "/")
     return {"swap_id": swap_id}
 
 
@@ -566,10 +578,12 @@ def accept_swap(swap_id: int, user=Depends(get_current_user)):
         conn.close()
         raise HTTPException(status_code=400, detail="Swap is not pending")
 
+    requester_id = query_one(conn, f"SELECT requester_id FROM swaps WHERE id = {P}", (swap_id,))["requester_id"]
     execute(conn, f"UPDATE swaps SET state = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = {P}", (swap_id,))
     execute(conn, f"UPDATE listings SET swap_status = 'accepted' WHERE id = {P}", (swap["listing_id"],))
     conn.commit()
     conn.close()
+    _send_push(requester_id, "✅ Swap Accepted!", "Your swap request was accepted. Open the chat to arrange handoff.", "/")
     return {"ok": True, "state": "accepted"}
 
 
@@ -1480,6 +1494,40 @@ def get_vendor_orders(user=Depends(get_current_user)):
     return rows
 
 
+@app.get("/api/shop/vendor/stats")
+def get_vendor_stats(user=Depends(get_current_user)):
+    conn = get_db()
+    vendor = query_one(conn, f"SELECT id FROM vendors WHERE user_id = {P}", (user["id"],))
+    if not vendor:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not a vendor")
+    vid = vendor["id"]
+
+    totals = query_one(conn,
+        f"""SELECT COALESCE(SUM(oi.subtotal), 0) as total_revenue,
+                   COALESCE(SUM(oi.quantity), 0) as items_sold,
+                   COUNT(DISTINCT oi.order_id) as total_orders
+            FROM order_items oi WHERE oi.vendor_id = {P}""",
+        (vid,))
+
+    product_stats = query(conn,
+        f"""SELECT oi.title, oi.product_id,
+                   SUM(oi.quantity) as units_sold,
+                   SUM(oi.subtotal) as revenue
+            FROM order_items oi WHERE oi.vendor_id = {P}
+            GROUP BY oi.product_id, oi.title
+            ORDER BY revenue DESC""",
+        (vid,))
+
+    conn.close()
+    return {
+        "total_revenue": totals["total_revenue"] if totals else 0,
+        "items_sold": totals["items_sold"] if totals else 0,
+        "total_orders": totals["total_orders"] if totals else 0,
+        "product_stats": product_stats,
+    }
+
+
 # ── Admin Endpoints ─────────────────────────────────────────────────────
 
 def _require_admin(user):
@@ -1604,6 +1652,136 @@ async def plant_doctor(image: UploadFile = File(...), user=Depends(get_current_u
     return {"diagnosis": diagnosis, "remaining": remaining}
 
 
+# ── Reviews ─────────────────────────────────────────────────────────────
+
+class ReviewRequest(BaseModel):
+    order_item_id: int
+    product_id: int
+    vendor_id: int
+    rating: int       # 1–5
+    comment: str = ""
+
+
+@app.post("/api/reviews")
+def post_review(req: ReviewRequest, user=Depends(get_current_user)):
+    if not (1 <= req.rating <= 5):
+        raise HTTPException(status_code=400, detail="Rating must be 1–5")
+    conn = get_db()
+    # Verify the order item belongs to this buyer
+    oi = query_one(conn,
+        f"""SELECT oi.id FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE oi.id = {P} AND o.buyer_id = {P}""",
+        (req.order_item_id, user["id"]))
+    if not oi:
+        conn.close()
+        raise HTTPException(status_code=403, detail="You can only review items you purchased")
+    existing = query_one(conn,
+        f"SELECT id FROM reviews WHERE order_item_id = {P} AND reviewer_id = {P}",
+        (req.order_item_id, user["id"]))
+    if existing:
+        conn.close()
+        raise HTTPException(status_code=409, detail="You already reviewed this item")
+    execute(conn,
+        f"INSERT INTO reviews (order_item_id, reviewer_id, vendor_id, product_id, rating, comment) VALUES ({P},{P},{P},{P},{P},{P})",
+        (req.order_item_id, user["id"], req.vendor_id, req.product_id, req.rating, req.comment))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.get("/api/products/{product_id}/reviews")
+def get_product_reviews(product_id: int):
+    conn = get_db()
+    rows = query(conn,
+        f"""SELECT r.rating, r.comment, r.created_at, u.display_name, u.username
+            FROM reviews r JOIN users u ON r.reviewer_id = u.id
+            WHERE r.product_id = {P} ORDER BY r.created_at DESC""",
+        (product_id,))
+    avg = query_one(conn,
+        f"SELECT ROUND(AVG(rating), 1) as avg_rating, COUNT(*) as count FROM reviews WHERE product_id = {P}",
+        (product_id,))
+    conn.close()
+    return {
+        "reviews": rows,
+        "avg_rating": avg["avg_rating"] if avg and avg["avg_rating"] else None,
+        "count": avg["count"] if avg else 0,
+    }
+
+
+@app.get("/api/shop/products/ratings")
+def get_all_ratings():
+    """Bulk endpoint: returns avg rating + count for every product that has reviews."""
+    conn = get_db()
+    rows = query(conn,
+        "SELECT product_id, ROUND(AVG(rating), 1) as avg_rating, COUNT(*) as count FROM reviews GROUP BY product_id",
+        ())
+    conn.close()
+    return {str(r["product_id"]): {"avg": r["avg_rating"], "count": r["count"]} for r in rows}
+
+
+# ── Push Notifications ──────────────────────────────────────────────────
+
+class PushSubscribeRequest(BaseModel):
+    subscription: dict  # {endpoint, keys: {p256dh, auth}}
+
+
+@app.get("/api/push/vapid-public-key")
+def get_vapid_public_key():
+    return {"key": VAPID_PUBLIC_KEY}
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe(req: PushSubscribeRequest, user=Depends(get_current_user)):
+    conn = get_db()
+    sub_json = json.dumps(req.subscription)
+    if DATABASE_URL:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO push_subscriptions (user_id, subscription_json) VALUES (%s, %s) "
+            "ON CONFLICT (user_id) DO UPDATE SET subscription_json = EXCLUDED.subscription_json",
+            (user["id"], sub_json))
+    else:
+        conn.execute(
+            "INSERT OR REPLACE INTO push_subscriptions (user_id, subscription_json) VALUES (?, ?)",
+            (user["id"], sub_json))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.delete("/api/push/subscribe")
+def push_unsubscribe(user=Depends(get_current_user)):
+    conn = get_db()
+    conn.execute(f"DELETE FROM push_subscriptions WHERE user_id = {P}", (user["id"],)) if not DATABASE_URL else \
+        conn.cursor().execute(f"DELETE FROM push_subscriptions WHERE user_id = {P}", (user["id"],))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+def _send_push(user_id: int, title: str, body: str, url: str = "/"):
+    """Send a Web Push notification to a user. Silently skips if not configured."""
+    if not WEBPUSH_AVAILABLE or not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+        return
+    conn = get_db()
+    row = query_one(conn, f"SELECT subscription_json FROM push_subscriptions WHERE user_id = {P}", (user_id,))
+    conn.close()
+    if not row:
+        return
+    try:
+        priv_pem = base64.urlsafe_b64decode(VAPID_PRIVATE_KEY + "==").decode()
+        subscription = json.loads(row["subscription_json"])
+        webpush(
+            subscription_info=subscription,
+            data=json.dumps({"title": title, "body": body, "url": url}),
+            vapid_private_key=priv_pem,
+            vapid_claims={"sub": f"mailto:{ADMIN_EMAIL}"}
+        )
+    except Exception:
+        pass  # never crash the main flow because of a push failure
+
+
 # ── Health / keep-alive ─────────────────────────────────────────────────
 
 @app.get("/health")
@@ -1650,6 +1828,11 @@ def update_test_check(req: TestCheckRequest):
 
 
 # ── SPA Fallback ────────────────────────────────────────────────────────
+
+@app.get("/sw.js")
+def serve_sw():
+    return FileResponse(str(FRONTEND_DIR / "sw.js"), media_type="application/javascript")
+
 
 @app.get("/test-plan")
 def serve_test_plan():
