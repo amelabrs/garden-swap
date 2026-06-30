@@ -4,6 +4,11 @@ import os
 import uuid
 import json
 import base64
+import hmac
+import hashlib
+import struct
+import time
+import secrets
 import stripe
 import anthropic
 try:
@@ -1822,6 +1827,392 @@ def update_test_check(req: TestCheckRequest):
             "INSERT OR REPLACE INTO test_checks (tester, test_id, checked, updated_at) VALUES (?, ?, ?, datetime('now'))",
             (req.tester, req.test_id, 1 if req.checked else 0)
         )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+# ── Stage 6: Events ─────────────────────────────────────────────────────
+
+class EventCreateRequest(BaseModel):
+    title: str
+    description: str = ""
+    location_name: str
+    address: str = ""
+    lat: float = 0
+    lng: float = 0
+    event_date: str
+    event_time: str
+    max_attendees: int = 0
+    handling_fee: float = 0
+
+
+class TagPlantRequest(BaseModel):
+    event_id: int
+    listing_id: int
+
+
+class PreBookRequest(BaseModel):
+    event_id: int
+    plant_tag_id: int
+
+
+class ClaimVerifyRequest(BaseModel):
+    claim_token: str
+    code: str
+
+
+def _totp_code(secret: str, counter: int = None) -> str:
+    """Generate a 6-digit TOTP-style code from secret + time counter."""
+    if counter is None:
+        counter = int(time.time()) // 60
+    msg = struct.pack(">Q", counter)
+    h = hmac.new(secret.encode(), msg, hashlib.sha1).digest()
+    offset = h[-1] & 0x0F
+    code = (struct.unpack(">I", h[offset:offset+4])[0] & 0x7FFFFFFF) % 1_000_000
+    return f"{code:06d}"
+
+
+def _verify_totp(secret: str, code: str, window: int = 1) -> bool:
+    """Accept code for current counter ± window."""
+    now = int(time.time()) // 60
+    return any(_totp_code(secret, now + d) == code for d in range(-window, window + 1))
+
+
+@app.get("/api/events")
+def list_events(user=Depends(get_current_user)):
+    conn = get_db()
+    rows = query(conn, f"""
+        SELECT e.*, u.username AS organizer,
+               (SELECT COUNT(*) FROM event_rsvps r WHERE r.event_id = e.id) AS rsvp_count,
+               (SELECT COUNT(*) FROM event_rsvps r WHERE r.event_id = e.id AND r.user_id = {P}) AS i_rsvped
+        FROM events e JOIN users u ON u.id = e.created_by
+        WHERE e.is_active = 1
+        ORDER BY e.event_date ASC, e.event_time ASC
+    """, (user["id"],))
+    conn.close()
+    return {"events": rows}
+
+
+@app.post("/api/events")
+def create_event(req: EventCreateRequest, user=Depends(get_current_user)):
+    if user["email"] != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Admin only")
+    conn = get_db()
+    if DATABASE_URL:
+        eid = execute(conn, f"""
+            INSERT INTO events (title, description, location_name, address, lat, lng,
+                event_date, event_time, max_attendees, handling_fee, created_by)
+            VALUES ({P},{P},{P},{P},{P},{P},{P},{P},{P},{P},{P})
+        """, (req.title, req.description, req.location_name, req.address,
+              req.lat, req.lng, req.event_date, req.event_time,
+              req.max_attendees, req.handling_fee, user["id"]))
+    else:
+        eid = execute(conn, f"""
+            INSERT INTO events (title, description, location_name, address, lat, lng,
+                event_date, event_time, max_attendees, handling_fee, created_by)
+            VALUES ({P},{P},{P},{P},{P},{P},{P},{P},{P},{P},{P})
+        """, (req.title, req.description, req.location_name, req.address,
+              req.lat, req.lng, req.event_date, req.event_time,
+              req.max_attendees, req.handling_fee, user["id"]))
+    conn.commit()
+    conn.close()
+    return {"id": eid}
+
+
+@app.get("/api/events/{event_id}")
+def get_event(event_id: int, user=Depends(get_current_user)):
+    conn = get_db()
+    ev = query_one(conn, f"""
+        SELECT e.*, u.username AS organizer,
+               (SELECT COUNT(*) FROM event_rsvps r WHERE r.event_id = e.id) AS rsvp_count,
+               (SELECT COUNT(*) FROM event_rsvps r WHERE r.event_id = e.id AND r.user_id = {P}) AS i_rsvped
+        FROM events e JOIN users u ON u.id = e.created_by
+        WHERE e.id = {P}
+    """, (user["id"], event_id))
+    if not ev:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # tagged plants
+    plants = query(conn, f"""
+        SELECT t.id AS tag_id, t.listing_id, t.is_prebooked, t.prebooked_by,
+               l.plant_name, l.description, l.image_url, l.zip_code,
+               u.username AS owner,
+               pb.id AS prebooking_id
+        FROM event_plant_tags t
+        JOIN listings l ON l.id = t.listing_id
+        JOIN users u ON u.id = t.user_id
+        LEFT JOIN event_prebookings pb ON pb.plant_tag_id = t.id AND pb.booker_id = {P}
+        WHERE t.event_id = {P}
+        ORDER BY t.created_at ASC
+    """, (user["id"], event_id))
+
+    conn.close()
+    return {"event": ev, "plants": plants}
+
+
+@app.post("/api/events/{event_id}/rsvp")
+def rsvp_event(event_id: int, user=Depends(get_current_user)):
+    conn = get_db()
+    ev = query_one(conn, f"SELECT id FROM events WHERE id = {P} AND is_active = 1", (event_id,))
+    if not ev:
+        raise HTTPException(status_code=404, detail="Event not found")
+    try:
+        if DATABASE_URL:
+            conn.cursor().execute(
+                f"INSERT INTO event_rsvps (event_id, user_id) VALUES ({P},{P}) ON CONFLICT DO NOTHING",
+                (event_id, user["id"])
+            )
+        else:
+            conn.execute(
+                f"INSERT OR IGNORE INTO event_rsvps (event_id, user_id) VALUES ({P},{P})",
+                (event_id, user["id"])
+            )
+        conn.commit()
+    except Exception:
+        pass
+    conn.close()
+    return {"ok": True}
+
+
+@app.delete("/api/events/{event_id}/rsvp")
+def un_rsvp_event(event_id: int, user=Depends(get_current_user)):
+    conn = get_db()
+    if DATABASE_URL:
+        conn.cursor().execute(
+            f"DELETE FROM event_rsvps WHERE event_id = {P} AND user_id = {P}",
+            (event_id, user["id"])
+        )
+    else:
+        conn.execute(
+            f"DELETE FROM event_rsvps WHERE event_id = {P} AND user_id = {P}",
+            (event_id, user["id"])
+        )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.post("/api/events/tag-plant")
+def tag_plant(req: TagPlantRequest, user=Depends(get_current_user)):
+    conn = get_db()
+    listing = query_one(conn, f"SELECT id, user_id FROM listings WHERE id = {P}", (req.listing_id,))
+    if not listing or listing["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your listing")
+    try:
+        if DATABASE_URL:
+            conn.cursor().execute(
+                f"INSERT INTO event_plant_tags (event_id, listing_id, user_id) VALUES ({P},{P},{P}) ON CONFLICT DO NOTHING",
+                (req.event_id, req.listing_id, user["id"])
+            )
+        else:
+            conn.execute(
+                f"INSERT OR IGNORE INTO event_plant_tags (event_id, listing_id, user_id) VALUES ({P},{P},{P})",
+                (req.event_id, req.listing_id, user["id"])
+            )
+        conn.execute(
+            f"UPDATE listings SET is_event_exclusive = 1 WHERE id = {P}",
+            (req.listing_id,)
+        )
+        conn.commit()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"ok": True}
+
+
+@app.delete("/api/events/tag-plant")
+def untag_plant(event_id: int = Query(...), listing_id: int = Query(...), user=Depends(get_current_user)):
+    conn = get_db()
+    tag = query_one(conn, f"SELECT id, is_prebooked FROM event_plant_tags WHERE event_id = {P} AND listing_id = {P} AND user_id = {P}",
+                    (event_id, listing_id, user["id"]))
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    if tag["is_prebooked"]:
+        raise HTTPException(status_code=400, detail="Cannot untag a pre-booked plant")
+    if DATABASE_URL:
+        conn.cursor().execute(
+            f"DELETE FROM event_plant_tags WHERE event_id = {P} AND listing_id = {P} AND user_id = {P}",
+            (event_id, listing_id, user["id"])
+        )
+    else:
+        conn.execute(
+            f"DELETE FROM event_plant_tags WHERE event_id = {P} AND listing_id = {P} AND user_id = {P}",
+            (event_id, listing_id, user["id"])
+        )
+    conn.execute(f"UPDATE listings SET is_event_exclusive = 0 WHERE id = {P}", (listing_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.get("/api/events/{event_id}/my-listings")
+def my_event_listings(event_id: int, user=Depends(get_current_user)):
+    """Return user's own listings so they can select which to tag."""
+    conn = get_db()
+    rows = query(conn, f"""
+        SELECT l.id, l.plant_name, l.image_url,
+               (SELECT 1 FROM event_plant_tags t WHERE t.event_id = {P} AND t.listing_id = l.id) AS tagged
+        FROM listings l WHERE l.user_id = {P} AND l.is_available = 1
+        ORDER BY l.created_at DESC
+    """, (event_id, user["id"]))
+    conn.close()
+    return {"listings": rows}
+
+
+@app.post("/api/events/prebook")
+def prebook_plant(req: PreBookRequest, user=Depends(get_current_user)):
+    conn = get_db()
+    tag = query_one(conn, f"""
+        SELECT t.*, l.user_id AS lister_id
+        FROM event_plant_tags t JOIN listings l ON l.id = t.listing_id
+        WHERE t.id = {P} AND t.event_id = {P}
+    """, (req.plant_tag_id, req.event_id))
+    if not tag:
+        raise HTTPException(status_code=404, detail="Plant tag not found")
+    if tag["is_prebooked"]:
+        raise HTTPException(status_code=400, detail="Already pre-booked")
+    if tag["lister_id"] == user["id"]:
+        raise HTTPException(status_code=400, detail="Cannot pre-book your own plant")
+
+    ev = query_one(conn, f"SELECT handling_fee FROM events WHERE id = {P}", (req.event_id,))
+    claim_token = str(uuid.uuid4())
+    claim_secret = secrets.token_hex(20)
+
+    pb_id = execute(conn, f"""
+        INSERT INTO event_prebookings (event_id, plant_tag_id, booker_id, lister_id, claim_token, claim_secret)
+        VALUES ({P},{P},{P},{P},{P},{P})
+    """, (req.event_id, req.plant_tag_id, user["id"], tag["lister_id"], claim_token, claim_secret))
+
+    if DATABASE_URL:
+        conn.cursor().execute(
+            f"UPDATE event_plant_tags SET is_prebooked = 1, prebooked_by = {P} WHERE id = {P}",
+            (user["id"], req.plant_tag_id)
+        )
+    else:
+        conn.execute(
+            f"UPDATE event_plant_tags SET is_prebooked = 1, prebooked_by = {P} WHERE id = {P}",
+            (user["id"], req.plant_tag_id)
+        )
+    conn.commit()
+    conn.close()
+
+    return {
+        "prebooking_id": pb_id,
+        "claim_token": claim_token,
+        "claim_secret": claim_secret,
+        "handling_fee": ev["handling_fee"] if ev else 0,
+    }
+
+
+@app.get("/api/events/prebook/{prebooking_id}")
+def get_prebook(prebooking_id: int, user=Depends(get_current_user)):
+    conn = get_db()
+    pb = query_one(conn, f"""
+        SELECT pb.*, l.plant_name, e.title AS event_title, e.event_date, e.handling_fee,
+               u.username AS lister_name
+        FROM event_prebookings pb
+        JOIN event_plant_tags t ON t.id = pb.plant_tag_id
+        JOIN listings l ON l.id = t.listing_id
+        JOIN events e ON e.id = pb.event_id
+        JOIN users u ON u.id = pb.lister_id
+        WHERE pb.id = {P} AND (pb.booker_id = {P} OR pb.lister_id = {P})
+    """, (prebooking_id, user["id"], user["id"]))
+    if not pb:
+        raise HTTPException(status_code=404, detail="Pre-booking not found")
+    conn.close()
+
+    # Include current TOTP code for the booker's display
+    result = dict(pb)
+    if pb["booker_id"] == user["id"] and not pb["is_claimed"]:
+        result["current_code"] = _totp_code(pb["claim_secret"])
+        result["seconds_remaining"] = 60 - (int(time.time()) % 60)
+    return result
+
+
+@app.get("/api/events/my-prebookings")
+def my_prebookings(user=Depends(get_current_user)):
+    conn = get_db()
+    rows = query(conn, f"""
+        SELECT pb.id, pb.event_id, pb.is_claimed, pb.claimed_at, pb.claim_token,
+               l.plant_name, e.title AS event_title, e.event_date, e.handling_fee,
+               u.username AS lister_name
+        FROM event_prebookings pb
+        JOIN event_plant_tags t ON t.id = pb.plant_tag_id
+        JOIN listings l ON l.id = t.listing_id
+        JOIN events e ON e.id = pb.event_id
+        JOIN users u ON u.id = pb.lister_id
+        WHERE pb.booker_id = {P}
+        ORDER BY pb.created_at DESC
+    """, (user["id"],))
+    conn.close()
+    return {"prebookings": rows}
+
+
+@app.get("/api/events/incoming-claims")
+def incoming_claims(user=Depends(get_current_user)):
+    """Plants I'm giving away that have been pre-booked (lister view)."""
+    conn = get_db()
+    rows = query(conn, f"""
+        SELECT pb.id, pb.event_id, pb.is_claimed, pb.claimed_at,
+               l.plant_name, e.title AS event_title, e.event_date,
+               u.username AS booker_name
+        FROM event_prebookings pb
+        JOIN event_plant_tags t ON t.id = pb.plant_tag_id
+        JOIN listings l ON l.id = t.listing_id
+        JOIN events e ON e.id = pb.event_id
+        JOIN users u ON u.id = pb.booker_id
+        WHERE pb.lister_id = {P}
+        ORDER BY pb.created_at DESC
+    """, (user["id"],))
+    conn.close()
+    return {"claims": rows}
+
+
+@app.post("/api/events/claim/verify")
+def verify_claim(req: ClaimVerifyRequest, user=Depends(get_current_user)):
+    """Lister scans QR or enters code to complete a swap."""
+    conn = get_db()
+    pb = query_one(conn, f"""
+        SELECT pb.*, t.listing_id
+        FROM event_prebookings pb
+        JOIN event_plant_tags t ON t.id = pb.plant_tag_id
+        WHERE pb.claim_token = {P} AND pb.lister_id = {P}
+    """, (req.claim_token, user["id"]))
+    if not pb:
+        raise HTTPException(status_code=404, detail="Pre-booking not found")
+    if pb["is_claimed"]:
+        raise HTTPException(status_code=400, detail="Already claimed")
+
+    # Accept QR token match OR valid TOTP code
+    code_valid = (req.code == req.claim_token) or _verify_totp(pb["claim_secret"], req.code)
+    if not code_valid:
+        raise HTTPException(status_code=400, detail="Invalid code")
+
+    if DATABASE_URL:
+        conn.cursor().execute(
+            f"UPDATE event_prebookings SET is_claimed = 1, claimed_at = NOW() WHERE id = {P}",
+            (pb["id"],)
+        )
+    else:
+        conn.execute(
+            f"UPDATE event_prebookings SET is_claimed = 1, claimed_at = datetime('now') WHERE id = {P}",
+            (pb["id"],)
+        )
+    # Mark listing unavailable
+    conn.execute(f"UPDATE listings SET is_available = 0 WHERE id = {P}", (pb["listing_id"],))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "message": "Swap complete! 🌱"}
+
+
+@app.post("/api/events/{event_id}/deactivate")
+def deactivate_event(event_id: int, user=Depends(get_current_user)):
+    if user["email"] != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Admin only")
+    conn = get_db()
+    conn.execute(f"UPDATE events SET is_active = 0 WHERE id = {P}", (event_id,)) if not DATABASE_URL else \
+        conn.cursor().execute(f"UPDATE events SET is_active = 0 WHERE id = {P}", (event_id,))
     conn.commit()
     conn.close()
     return {"ok": True}

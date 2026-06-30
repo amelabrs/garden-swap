@@ -870,7 +870,7 @@ async function confirmCancelSubscription() {
 // ── Navigation ─────────────────────────────────────────────────────────
 
 function switchView(view) {
-    const views = ['feed', 'shop', 'doctor', 'profile', 'chats', 'notifications'];
+    const views = ['feed', 'shop', 'doctor', 'profile', 'chats', 'notifications', 'events', 'event-detail'];
     views.forEach(v => {
         const el = document.getElementById(`${v}-view`);
         if (el) el.classList.toggle('hidden', v !== view);
@@ -894,6 +894,9 @@ function switchView(view) {
         if (!currentUser) { openModal('auth-modal'); switchView('feed'); return; }
         if (isSprout()) { openPaywall('smart_match'); switchView('feed'); return; }
         loadNotifications();
+    } else if (view === 'events') {
+        if (!currentUser) { openModal('auth-modal'); switchView('feed'); return; }
+        loadEvents();
     }
 }
 
@@ -2130,4 +2133,409 @@ function _urlBase64ToUint8Array(base64String) {
     const output = new Uint8Array(raw.length);
     for (let i = 0; i < raw.length; ++i) output[i] = raw.charCodeAt(i);
     return output;
+}
+
+// ── Stage 6: Events ────────────────────────────────────────────────────
+
+let _currentEventId = null;
+let _currentEventData = null;
+let _claimInterval = null;
+let _scannerStream = null;
+let _scannerAnimFrame = null;
+let _prebookContext = null;   // { plant_tag_id, event_id, plant_name, handling_fee }
+let _claimContext = null;     // { prebooking_id, claim_token, claim_secret, plant_name }
+
+async function loadEvents() {
+    const list = document.getElementById('events-list');
+    list.innerHTML = '<p style="color:#888;text-align:center">Loading events…</p>';
+
+    // Show admin create button if admin
+    const adminBtn = document.getElementById('admin-create-event-btn');
+    if (adminBtn && currentUser && currentUser.email === 'amelabrs@gmail.com') {
+        adminBtn.classList.remove('hidden');
+    }
+
+    const res = await apiFetch('/api/events');
+    if (!res.ok) { list.innerHTML = '<p style="color:#c00">Failed to load events.</p>'; return; }
+    const { events } = await res.json();
+
+    if (!events.length) {
+        list.innerHTML = '<p style="color:#888;text-align:center;padding:2rem">No upcoming events yet. Watch this space! 🌱</p>';
+        return;
+    }
+
+    list.innerHTML = events.map(ev => {
+        const date = new Date(ev.event_date + 'T' + ev.event_time);
+        const dateStr = date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+        const timeStr = ev.event_time.slice(0, 5);
+        const feeHtml = ev.handling_fee > 0
+            ? `<span class="event-fee-badge">£${Number(ev.handling_fee).toFixed(2)} handling</span>` : '';
+        const rsvpHtml = ev.i_rsvped
+            ? '<span class="event-rsvp-count">✅ Going</span>'
+            : `<span class="event-rsvp-count">${ev.rsvp_count} going</span>`;
+        return `
+        <div class="event-card" onclick="openEventDetail(${ev.id})">
+            <div class="event-card-header">
+                <div class="event-card-title">${escHtml(ev.title)}</div>
+                <div class="event-card-date">📅 ${dateStr} · ${timeStr}</div>
+            </div>
+            <div class="event-card-body">
+                <div class="event-card-location">📍 ${escHtml(ev.location_name)}</div>
+                ${ev.description ? `<div class="event-card-desc">${escHtml(ev.description.slice(0, 100))}${ev.description.length > 100 ? '…' : ''}</div>` : ''}
+                <div class="event-card-footer">${rsvpHtml}${feeHtml}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function openEventDetail(eventId) {
+    _currentEventId = eventId;
+    switchView('event-detail');
+    const content = document.getElementById('event-detail-content');
+    content.innerHTML = '<p style="color:#888;text-align:center;padding:2rem">Loading…</p>';
+
+    const res = await apiFetch(`/api/events/${eventId}`);
+    if (!res.ok) { content.innerHTML = '<p style="color:#c00">Failed to load event.</p>'; return; }
+    const { event: ev, plants } = await res.json();
+    _currentEventData = ev;
+
+    const date = new Date(ev.event_date + 'T' + ev.event_time);
+    const dateStr = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeStr = ev.event_time.slice(0, 5);
+
+    const rsvpBtn = ev.i_rsvped
+        ? `<button class="btn btn-outline" onclick="toggleRSVP(false)">✅ I'm going · Cancel</button>`
+        : `<button class="btn btn-primary" onclick="toggleRSVP(true)">📅 RSVP</button>`;
+
+    const tagBtn = `<button class="btn btn-outline" onclick="openTagPlants(${eventId})">🌿 Tag My Plants</button>`;
+
+    const mapLink = ev.address
+        ? `<a href="https://maps.google.com/?q=${encodeURIComponent(ev.address)}" target="_blank" style="color:#2d6a4f;font-size:0.85rem">📍 View on map</a>`
+        : '';
+
+    const plantsHtml = plants.length ? plants.map(p => {
+        const img = p.image_url ? `<img src="${escHtml(p.image_url)}" alt="${escHtml(p.plant_name)}" loading="lazy">` : `<div style="height:100px;background:#e9f5ee;display:flex;align-items:center;justify-content:center;font-size:1.5rem">🌿</div>`;
+        const bookedOverlay = p.is_prebooked ? `<div class="prebooked-overlay">Pre-Booked</div>` : '';
+        const prebookBtn = !p.is_prebooked && p.owner !== (currentUser && currentUser.username)
+            ? `<button class="ep-prebook-btn" onclick="startPrebook(${p.tag_id},${eventId},'${escHtml(p.plant_name).replace(/'/g,"\\'")}',${ev.handling_fee || 0})">🔖 Pre-Book</button>`
+            : '';
+        const claimBtn = p.prebooking_id
+            ? `<button class="ep-prebook-btn" style="background:#40916c" onclick="openClaimModal(${p.prebooking_id})">📲 My Code</button>`
+            : '';
+        return `
+        <div class="event-plant-card">
+            ${img}
+            <div class="event-exclusive-badge">Event</div>
+            ${bookedOverlay}
+            <div class="ep-info">
+                <div class="ep-name">${escHtml(p.plant_name)}</div>
+                <div class="ep-owner">by ${escHtml(p.owner)}</div>
+            </div>
+            ${claimBtn || prebookBtn}
+        </div>`;
+    }).join('') : '<p style="color:#aaa;font-size:0.85rem">No plants tagged yet. Be the first! 🌱</p>';
+
+    content.innerHTML = `
+    <div class="event-detail-hero">
+        <div class="event-detail-title">${escHtml(ev.title)}</div>
+        <div class="event-detail-meta">📅 ${dateStr} · ${timeStr} &nbsp;·&nbsp; 📍 ${escHtml(ev.location_name)}</div>
+        ${ev.max_attendees ? `<div class="event-detail-meta" style="margin-top:0.2rem">👥 Max ${ev.max_attendees} attendees</div>` : ''}
+    </div>
+    <div class="event-detail-body">
+        ${ev.description ? `<p class="event-detail-desc">${escHtml(ev.description)}</p>` : ''}
+        ${mapLink}
+        <div class="event-actions" style="margin-top:0.75rem">
+            ${rsvpBtn}
+            ${tagBtn}
+            <button class="btn btn-outline" onclick="openScannerModal()">📷 Scan QR</button>
+        </div>
+        <div class="event-plants-section">
+            <h3>🌿 Plants at this event (${plants.length})</h3>
+            <div class="event-plants-grid">${plantsHtml}</div>
+        </div>
+    </div>`;
+}
+
+async function toggleRSVP(going) {
+    if (!_currentEventId) return;
+    const method = going ? 'POST' : 'DELETE';
+    const res = await apiFetch(`/api/events/${_currentEventId}/rsvp`, { method });
+    if (res.ok) openEventDetail(_currentEventId);
+}
+
+// ── Tag plants ──────────────────────────────────────────────────────────
+
+async function openTagPlants(eventId) {
+    openModal('tag-plant-modal');
+    const list = document.getElementById('tag-plant-list');
+    list.innerHTML = '<p style="color:#888">Loading your listings…</p>';
+
+    const res = await apiFetch(`/api/events/${eventId}/my-listings`);
+    if (!res.ok) { list.innerHTML = '<p style="color:#c00">Failed to load listings.</p>'; return; }
+    const { listings } = await res.json();
+
+    if (!listings.length) {
+        list.innerHTML = '<p style="color:#888">You have no active listings. Add one first!</p>';
+        return;
+    }
+
+    list.innerHTML = listings.map(l => `
+        <div class="tag-plant-item ${l.tagged ? 'tagged' : ''}" id="tpi-${l.id}" onclick="toggleTagPlant(${eventId},${l.id},${l.tagged ? 1 : 0})">
+            ${l.image_url ? `<img src="${escHtml(l.image_url)}" alt="">` : '<div style="width:48px;height:48px;background:#e9f5ee;border-radius:8px;display:flex;align-items:center;justify-content:center">🌿</div>'}
+            <span class="tag-plant-item-name">${escHtml(l.plant_name)}</span>
+        </div>
+    `).join('');
+}
+
+async function toggleTagPlant(eventId, listingId, isTagged) {
+    if (isTagged) {
+        const res = await apiFetch(`/api/events/tag-plant?event_id=${eventId}&listing_id=${listingId}`, { method: 'DELETE' });
+        if (!res.ok) { const d = await res.json(); alert(d.detail || 'Failed to untag'); return; }
+    } else {
+        const res = await apiFetch('/api/events/tag-plant', {
+            method: 'POST',
+            body: JSON.stringify({ event_id: eventId, listing_id: listingId })
+        });
+        if (!res.ok) { const d = await res.json(); alert(d.detail || 'Failed to tag'); return; }
+    }
+    // Refresh the list
+    await openTagPlants(eventId);
+    // Refresh event detail plants grid in background
+    if (_currentEventId === eventId) openEventDetail(eventId);
+}
+
+// ── Pre-book ─────────────────────────────────────────────────────────────
+
+function startPrebook(plantTagId, eventId, plantName, handlingFee) {
+    _prebookContext = { plant_tag_id: plantTagId, event_id: eventId, plant_name: plantName, handling_fee: handlingFee };
+    document.getElementById('prebook-plant-name').textContent = `Plant: ${plantName}`;
+    document.getElementById('prebook-fee-note').textContent = handlingFee > 0
+        ? `A £${Number(handlingFee).toFixed(2)} handling fee applies for pre-bookings at this event.`
+        : 'No handling fee for this event.';
+    document.getElementById('prebook-msg').textContent = '';
+    openModal('prebook-confirm-modal');
+}
+
+async function confirmPrebook() {
+    if (!_prebookContext) return;
+    const msg = document.getElementById('prebook-msg');
+    msg.textContent = 'Booking…';
+    const res = await apiFetch('/api/events/prebook', {
+        method: 'POST',
+        body: JSON.stringify({ event_id: _prebookContext.event_id, plant_tag_id: _prebookContext.plant_tag_id })
+    });
+    if (!res.ok) {
+        const d = await res.json();
+        msg.textContent = d.detail || 'Failed to pre-book.';
+        return;
+    }
+    const data = await res.json();
+    closeModal('prebook-confirm-modal');
+    // Open claim code modal immediately
+    _claimContext = {
+        prebooking_id: data.prebooking_id,
+        claim_token: data.claim_token,
+        claim_secret: data.claim_secret,
+        plant_name: _prebookContext.plant_name,
+    };
+    openClaimCodeUI();
+    // Refresh event detail
+    if (_currentEventId) openEventDetail(_currentEventId);
+}
+
+// ── Claim code (TOTP) ─────────────────────────────────────────────────────
+
+async function openClaimModal(prebookingId) {
+    const res = await apiFetch(`/api/events/prebook/${prebookingId}`);
+    if (!res.ok) { alert('Could not load pre-booking.'); return; }
+    const pb = await res.json();
+    if (pb.is_claimed) { alert('This pre-booking has already been claimed. Swap complete! 🌱'); return; }
+    _claimContext = {
+        prebooking_id: pb.id,
+        claim_token: pb.claim_token,
+        claim_secret: pb.claim_secret,
+        plant_name: pb.plant_name,
+    };
+    openClaimCodeUI();
+}
+
+async function _totpCode(secret, counter) {
+    // HMAC-SHA1(secret, counter as 8-byte big-endian) → 6 digits
+    if (counter === undefined) counter = Math.floor(Date.now() / 60000);
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(secret),
+        { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+    );
+    const buf = new ArrayBuffer(8);
+    new DataView(buf).setBigUint64(0, BigInt(counter), false);
+    const sig = await crypto.subtle.sign('HMAC', keyMaterial, buf);
+    const h = new Uint8Array(sig);
+    const offset = h[19] & 0x0F;
+    const code = ((h[offset] & 0x7F) << 24 | h[offset+1] << 16 | h[offset+2] << 8 | h[offset+3]) % 1000000;
+    return String(code).padStart(6, '0');
+}
+
+function openClaimCodeUI() {
+    const modal = document.getElementById('claim-code-modal');
+    modal.classList.remove('hidden');
+
+    // Generate QR
+    const qrDiv = document.getElementById('claim-qr');
+    qrDiv.innerHTML = '';
+    if (typeof QRCode !== 'undefined') {
+        new QRCode(qrDiv, {
+            text: _claimContext.claim_token,
+            width: 200, height: 200,
+            colorDark: '#1b4332', colorLight: '#ffffff',
+        });
+    } else {
+        qrDiv.textContent = _claimContext.claim_token;
+    }
+
+    document.getElementById('claim-modal-plant').textContent = _claimContext.plant_name;
+    _startTotpTick();
+}
+
+function _startTotpTick() {
+    if (_claimInterval) clearInterval(_claimInterval);
+    const tick = async () => {
+        const code = await _totpCode(_claimContext.claim_secret);
+        document.getElementById('claim-totp-digits').textContent = code;
+        const secs = 60 - (Math.floor(Date.now() / 1000) % 60);
+        document.getElementById('claim-totp-timer').textContent = secs + 's';
+    };
+    tick();
+    _claimInterval = setInterval(tick, 1000);
+}
+
+function closeClaimModal() {
+    document.getElementById('claim-code-modal').classList.add('hidden');
+    if (_claimInterval) { clearInterval(_claimInterval); _claimInterval = null; }
+}
+
+// ── QR Scanner ────────────────────────────────────────────────────────────
+
+let _scanClaimToken = null;
+
+async function openScannerModal() {
+    _scanClaimToken = null;
+    document.getElementById('scanner-msg').textContent = '';
+    document.getElementById('manual-code-input').value = '';
+    openModal('scanner-modal');
+
+    const video = document.getElementById('scanner-video');
+    const canvas = document.getElementById('scanner-canvas');
+
+    try {
+        _scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = _scannerStream;
+        video.play();
+        _scanLoop(video, canvas);
+    } catch {
+        document.getElementById('scanner-msg').textContent = 'Camera not available — use manual code entry.';
+    }
+}
+
+function _scanLoop(video, canvas) {
+    const ctx = canvas.getContext('2d');
+    const tick = () => {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const qr = typeof jsQR !== 'undefined' ? jsQR(img.data, img.width, img.height) : null;
+            if (qr && qr.data) {
+                _scanClaimToken = qr.data;
+                submitScanResult(qr.data);
+                return;
+            }
+        }
+        _scannerAnimFrame = requestAnimationFrame(tick);
+    };
+    _scannerAnimFrame = requestAnimationFrame(tick);
+}
+
+function closeScannerModal() {
+    document.getElementById('scanner-modal').classList.add('hidden');
+    if (_scannerStream) { _scannerStream.getTracks().forEach(t => t.stop()); _scannerStream = null; }
+    if (_scannerAnimFrame) { cancelAnimationFrame(_scannerAnimFrame); _scannerAnimFrame = null; }
+}
+
+async function submitManualCode() {
+    const code = document.getElementById('manual-code-input').value.trim();
+    if (!code) return;
+    await submitScanResult(code);
+}
+
+async function submitScanResult(codeOrToken) {
+    if (_scannerAnimFrame) { cancelAnimationFrame(_scannerAnimFrame); _scannerAnimFrame = null; }
+    const msg = document.getElementById('scanner-msg');
+    msg.textContent = 'Verifying…';
+
+    // We need the claim_token from the QR. If the user typed a 6-digit code, we need a token too.
+    // The lister should first manually input the booker's claim_token (from QR data), then it auto-verifies.
+    // For 6-digit manual entry: the lister enters the TOTP code; we send it with the token they scanned earlier
+    // or we ask for the token first. Simplest UX: if 6 digits → ask for token; if UUID format → use as token.
+
+    const isToken = /^[0-9a-f-]{36}$/.test(codeOrToken);
+    const token = isToken ? codeOrToken : (_scanClaimToken || '');
+    const code = isToken ? codeOrToken : codeOrToken;
+
+    const res = await apiFetch('/api/events/claim/verify', {
+        method: 'POST',
+        body: JSON.stringify({ claim_token: token, code: code })
+    });
+    if (!res.ok) {
+        const d = await res.json();
+        msg.style.color = '#c00';
+        msg.textContent = d.detail || 'Verification failed.';
+        return;
+    }
+    const d = await res.json();
+    msg.style.color = '#2d6a4f';
+    msg.textContent = d.message || 'Swap complete!';
+    closeScannerModal();
+    if (_currentEventId) setTimeout(() => openEventDetail(_currentEventId), 800);
+}
+
+// ── Create Event (Admin) ──────────────────────────────────────────────────
+
+function openCreateEvent() {
+    openModal('create-event-modal');
+    document.getElementById('create-event-msg').textContent = '';
+}
+
+async function submitCreateEvent() {
+    const title = document.getElementById('ev-title').value.trim();
+    const desc = document.getElementById('ev-desc').value.trim();
+    const location = document.getElementById('ev-location').value.trim();
+    const address = document.getElementById('ev-address').value.trim();
+    const date = document.getElementById('ev-date').value;
+    const time = document.getElementById('ev-time').value;
+    const max = parseInt(document.getElementById('ev-max').value) || 0;
+    const fee = parseFloat(document.getElementById('ev-fee').value) || 0;
+    const msg = document.getElementById('create-event-msg');
+
+    if (!title || !location || !date || !time) {
+        msg.textContent = 'Title, venue, date and time are required.';
+        return;
+    }
+    msg.textContent = 'Creating…';
+    const res = await apiFetch('/api/events', {
+        method: 'POST',
+        body: JSON.stringify({ title, description: desc, location_name: location, address, event_date: date, event_time: time, max_attendees: max, handling_fee: fee })
+    });
+    if (!res.ok) {
+        const d = await res.json();
+        msg.textContent = d.detail || 'Failed to create event.';
+        return;
+    }
+    closeModal('create-event-modal');
+    await loadEvents();
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

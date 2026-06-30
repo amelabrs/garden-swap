@@ -35,6 +35,7 @@
     <nav id="main-nav">
         <button class="nav-btn active" data-view="feed">🌱 Swap</button>
         <button class="nav-btn" data-view="shop">🛒 Shop</button>
+        <button class="nav-btn" data-view="events">📅 Events</button>
         <button class="nav-btn" data-view="doctor">🩺 Doctor</button>
         <button class="nav-btn" data-view="chats">💬 Chats</button>
         <button class="nav-btn" data-view="profile">👤 Profile</button>
@@ -566,6 +567,96 @@
         </div>
     </div>
 
+    <!-- ── Events View ───────────────────────────────────────── -->
+    <section id="events-view" class="hidden">
+        <div class="events-header">
+            <h2>📅 Swap Events</h2>
+            <button id="admin-create-event-btn" class="btn btn-primary hidden" onclick="openCreateEvent()">+ Create Event</button>
+        </div>
+        <div id="events-list" class="events-list"></div>
+    </section>
+
+    <!-- ── Event Detail View ──────────────────────────────────── -->
+    <section id="event-detail-view" class="hidden">
+        <button class="btn-back" onclick="switchView('events')">← Back to Events</button>
+        <div id="event-detail-content"></div>
+    </section>
+
+    <!-- ── Create Event Modal (Admin) ─────────────────────────── -->
+    <div id="create-event-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('create-event-modal')">✕</button>
+            <h2>📅 Create Event</h2>
+            <input id="ev-title" type="text" placeholder="Event title" class="input-field">
+            <textarea id="ev-desc" placeholder="Description" class="input-field" rows="3"></textarea>
+            <input id="ev-location" type="text" placeholder="Venue name" class="input-field">
+            <input id="ev-address" type="text" placeholder="Address" class="input-field">
+            <div class="ev-row">
+                <input id="ev-date" type="date" class="input-field">
+                <input id="ev-time" type="time" class="input-field">
+            </div>
+            <div class="ev-row">
+                <input id="ev-max" type="number" placeholder="Max attendees (0=unlimited)" class="input-field" value="0">
+                <input id="ev-fee" type="number" step="0.50" placeholder="Handling fee £" class="input-field" value="0">
+            </div>
+            <button class="btn btn-primary" onclick="submitCreateEvent()">Create Event</button>
+            <p id="create-event-msg" class="form-msg"></p>
+        </div>
+    </div>
+
+    <!-- ── Tag Plant Modal ────────────────────────────────────── -->
+    <div id="tag-plant-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('tag-plant-modal')">✕</button>
+            <h2>🌿 Tag Your Plants</h2>
+            <p class="modal-sub">Select which of your listings you're bringing to this event.</p>
+            <div id="tag-plant-list" class="tag-plant-list"></div>
+        </div>
+    </div>
+
+    <!-- ── Pre-Book Confirm Modal ─────────────────────────────── -->
+    <div id="prebook-confirm-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('prebook-confirm-modal')">✕</button>
+            <h2>🔖 Pre-Book Plant</h2>
+            <p id="prebook-plant-name" class="modal-sub"></p>
+            <p id="prebook-fee-note" class="modal-sub"></p>
+            <button class="btn btn-primary" onclick="confirmPrebook()">Confirm Pre-Book</button>
+            <p id="prebook-msg" class="form-msg"></p>
+        </div>
+    </div>
+
+    <!-- ── QR Claim Code Modal (Booker shows this) ────────────── -->
+    <div id="claim-code-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeClaimModal()">✕</button>
+            <h2>📲 Your Claim Code</h2>
+            <p class="modal-sub">Show this QR or code to the plant owner at the event.</p>
+            <div id="claim-qr" class="claim-qr"></div>
+            <div class="claim-totp-row">
+                <span class="claim-totp-code" id="claim-totp-digits">------</span>
+                <span class="claim-totp-timer" id="claim-totp-timer">60s</span>
+            </div>
+            <p class="claim-plant-name" id="claim-modal-plant"></p>
+        </div>
+    </div>
+
+    <!-- ── QR Scanner Modal (Lister scans) ───────────────────── -->
+    <div id="scanner-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeScannerModal()">✕</button>
+            <h2>📷 Scan Claim QR</h2>
+            <video id="scanner-video" class="scanner-video" autoplay playsinline muted></video>
+            <canvas id="scanner-canvas" class="hidden"></canvas>
+            <p class="modal-sub">Or enter the 6-digit code manually:</p>
+            <div class="manual-code-row">
+                <input id="manual-code-input" type="text" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="000000" class="input-field manual-code-field">
+                <button class="btn btn-primary" onclick="submitManualCode()">Verify</button>
+            </div>
+            <p id="scanner-msg" class="form-msg"></p>
+        </div>
+    </div>
+
     <!-- ── Plant Doctor view ─────────────────────────────────── -->
     <section id="doctor-view" class="hidden">
         <div id="doctor-locked" class="doctor-locked hidden">
@@ -607,6 +698,8 @@
     <!-- ── FAB (New Listing) ────────────────────────────────── -->
     <button id="fab" class="fab hidden" onclick="openNewListing()">+</button>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>

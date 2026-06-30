@@ -1935,3 +1935,195 @@ body {
     from { transform: translateX(-50%) translateY(20px); opacity: 0; }
     to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
 }
+
+/* ── Stage 6: Events ──────────────────────────────────────────────────── */
+.events-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1rem 0.5rem;
+}
+.events-header h2 { margin: 0; font-size: 1.2rem; color: #1b4332; }
+.events-list { padding: 0.5rem 1rem 5rem; display: flex; flex-direction: column; gap: 1rem; }
+
+.event-card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+.event-card:hover { transform: translateY(-2px); }
+.event-card-header {
+    background: linear-gradient(135deg, #1b4332, #2d6a4f);
+    color: #fff;
+    padding: 1rem;
+}
+.event-card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.2rem; }
+.event-card-date { font-size: 0.85rem; opacity: 0.85; }
+.event-card-body { padding: 0.75rem 1rem; }
+.event-card-location { font-size: 0.9rem; color: #555; margin-bottom: 0.4rem; }
+.event-card-desc { font-size: 0.85rem; color: #777; margin-bottom: 0.6rem; }
+.event-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #888;
+}
+.event-rsvp-count { color: #2d6a4f; font-weight: 600; }
+.event-fee-badge {
+    background: #f0fdf4;
+    color: #1b4332;
+    border: 1px solid #b7e4c7;
+    border-radius: 20px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Event detail */
+#event-detail-view { padding: 0 0 5rem; }
+.btn-back {
+    background: none;
+    border: none;
+    color: #2d6a4f;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    display: block;
+}
+.event-detail-hero {
+    background: linear-gradient(135deg, #1b4332, #2d6a4f);
+    color: #fff;
+    padding: 1.5rem 1rem;
+}
+.event-detail-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.3rem; }
+.event-detail-meta { font-size: 0.9rem; opacity: 0.85; }
+.event-detail-body { padding: 1rem; }
+.event-detail-desc { color: #444; margin-bottom: 1rem; line-height: 1.5; }
+.event-actions { display: flex; gap: 0.6rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+
+.event-plants-section h3 { font-size: 1rem; color: #1b4332; margin-bottom: 0.75rem; }
+.event-plants-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+.event-plant-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    overflow: hidden;
+    position: relative;
+}
+.event-plant-card img { width: 100%; height: 100px; object-fit: cover; }
+.event-plant-card .ep-info { padding: 0.5rem; }
+.event-plant-card .ep-name { font-size: 0.85rem; font-weight: 600; color: #1b4332; }
+.event-plant-card .ep-owner { font-size: 0.75rem; color: #888; }
+.event-exclusive-badge {
+    position: absolute;
+    top: 6px; left: 6px;
+    background: #f59e0b;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+}
+.prebooked-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 3px;
+}
+.ep-prebook-btn {
+    width: 100%;
+    background: #2d6a4f;
+    color: #fff;
+    border: none;
+    padding: 0.35rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    border-radius: 0 0 10px 10px;
+}
+.ep-prebook-btn:hover { background: #1b4332; }
+
+/* Tag plant modal */
+.tag-plant-list { display: flex; flex-direction: column; gap: 0.6rem; max-height: 60vh; overflow-y: auto; }
+.tag-plant-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem;
+    border-radius: 10px;
+    background: #f8fdf9;
+    border: 1px solid #d8f3dc;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.tag-plant-item:hover { background: #d8f3dc; }
+.tag-plant-item img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; }
+.tag-plant-item-name { font-size: 0.9rem; font-weight: 600; color: #1b4332; }
+.tag-plant-item.tagged { background: #d8f3dc; border-color: #40916c; }
+.tag-plant-item.tagged .tag-plant-item-name::after { content: " ✓"; color: #2d6a4f; }
+
+/* Claim code modal */
+.claim-qr { display: flex; justify-content: center; margin: 1rem 0; }
+.claim-totp-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin: 0.5rem 0 1rem;
+}
+.claim-totp-code {
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: #1b4332;
+    font-family: monospace;
+}
+.claim-totp-timer {
+    font-size: 0.9rem;
+    color: #888;
+    min-width: 32px;
+    text-align: right;
+}
+.claim-plant-name { text-align: center; color: #555; font-size: 0.9rem; }
+
+/* Scanner */
+.scanner-video {
+    width: 100%;
+    border-radius: 10px;
+    background: #000;
+    margin-bottom: 0.75rem;
+}
+.manual-code-row { display: flex; gap: 0.5rem; align-items: center; }
+.manual-code-field { font-size: 1.4rem; letter-spacing: 0.2em; text-align: center; flex: 1; }
+
+/* Create event form */
+.ev-row { display: flex; gap: 0.5rem; }
+.ev-row .input-field { flex: 1; }
+
+/* My prebookings in profile */
+.prebook-card {
+    background: #f8fdf9;
+    border: 1px solid #d8f3dc;
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+.prebook-card-title { font-weight: 600; color: #1b4332; margin-bottom: 0.2rem; }
+.prebook-card-meta { font-size: 0.8rem; color: #777; }
+.prebook-claimed-badge {
+    display: inline-block;
+    background: #2d6a4f;
+    color: #fff;
+    border-radius: 8px;
+    padding: 1px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 0.3rem;
+}

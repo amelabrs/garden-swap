@@ -226,6 +226,67 @@ if DATABASE_URL:
 
             CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
             CREATE INDEX IF NOT EXISTS idx_reviews_vendor ON reviews(vendor_id);
+
+            CREATE TABLE IF NOT EXISTS events (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                location_name TEXT NOT NULL,
+                address TEXT DEFAULT '',
+                lat REAL DEFAULT 0,
+                lng REAL DEFAULT 0,
+                event_date TEXT NOT NULL,
+                event_time TEXT NOT NULL,
+                max_attendees INTEGER DEFAULT 0,
+                handling_fee REAL DEFAULT 0,
+                created_by INTEGER REFERENCES users(id),
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS event_rsvps (
+                id SERIAL PRIMARY KEY,
+                event_id INTEGER NOT NULL REFERENCES events(id),
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(event_id, user_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS event_plant_tags (
+                id SERIAL PRIMARY KEY,
+                event_id INTEGER NOT NULL REFERENCES events(id),
+                listing_id INTEGER NOT NULL REFERENCES listings(id),
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                is_prebooked INTEGER DEFAULT 0,
+                prebooked_by INTEGER REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(event_id, listing_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS event_prebookings (
+                id SERIAL PRIMARY KEY,
+                event_id INTEGER NOT NULL REFERENCES events(id),
+                plant_tag_id INTEGER NOT NULL REFERENCES event_plant_tags(id),
+                booker_id INTEGER NOT NULL REFERENCES users(id),
+                lister_id INTEGER NOT NULL REFERENCES users(id),
+                claim_token TEXT NOT NULL UNIQUE,
+                claim_secret TEXT NOT NULL,
+                is_claimed INTEGER DEFAULT 0,
+                claimed_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_event_rsvps_event ON event_rsvps(event_id);
+            CREATE INDEX IF NOT EXISTS idx_event_plant_tags_event ON event_plant_tags(event_id);
+            CREATE INDEX IF NOT EXISTS idx_event_prebookings_token ON event_prebookings(claim_token);
+
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                subscription_json TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(user_id)
+            );
         """)
         conn.commit()
         conn.close()
@@ -241,6 +302,7 @@ if DATABASE_URL:
             "ALTER TABLE listings ADD COLUMN IF NOT EXISTS light_needs TEXT DEFAULT ''",
             "ALTER TABLE listings ADD COLUMN IF NOT EXISTS rarity TEXT DEFAULT ''",
             "ALTER TABLE listings ADD COLUMN IF NOT EXISTS size TEXT DEFAULT ''",
+            "ALTER TABLE listings ADD COLUMN IF NOT EXISTS is_event_exclusive INTEGER DEFAULT 0",
         ]
         for sql in migrations:
             try:
@@ -356,7 +418,7 @@ if DATABASE_URL:
         except Exception:
             conn.rollback()
 
-        # Stage 6: push_subscriptions
+        # Stage 6: push_subscriptions + events tables
         try:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS push_subscriptions (
@@ -366,7 +428,61 @@ if DATABASE_URL:
                     created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(user_id)
                 );
+                CREATE TABLE IF NOT EXISTS events (
+                    id SERIAL PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    location_name TEXT NOT NULL,
+                    address TEXT DEFAULT '',
+                    lat REAL DEFAULT 0,
+                    lng REAL DEFAULT 0,
+                    event_date TEXT NOT NULL,
+                    event_time TEXT NOT NULL,
+                    max_attendees INTEGER DEFAULT 0,
+                    handling_fee REAL DEFAULT 0,
+                    created_by INTEGER REFERENCES users(id),
+                    is_active INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+                CREATE TABLE IF NOT EXISTS event_rsvps (
+                    id SERIAL PRIMARY KEY,
+                    event_id INTEGER NOT NULL REFERENCES events(id),
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(event_id, user_id)
+                );
+                CREATE TABLE IF NOT EXISTS event_plant_tags (
+                    id SERIAL PRIMARY KEY,
+                    event_id INTEGER NOT NULL REFERENCES events(id),
+                    listing_id INTEGER NOT NULL REFERENCES listings(id),
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    is_prebooked INTEGER DEFAULT 0,
+                    prebooked_by INTEGER REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(event_id, listing_id)
+                );
+                CREATE TABLE IF NOT EXISTS event_prebookings (
+                    id SERIAL PRIMARY KEY,
+                    event_id INTEGER NOT NULL REFERENCES events(id),
+                    plant_tag_id INTEGER NOT NULL REFERENCES event_plant_tags(id),
+                    booker_id INTEGER NOT NULL REFERENCES users(id),
+                    lister_id INTEGER NOT NULL REFERENCES users(id),
+                    claim_token TEXT NOT NULL UNIQUE,
+                    claim_secret TEXT NOT NULL,
+                    is_claimed INTEGER DEFAULT 0,
+                    claimed_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_event_rsvps_event ON event_rsvps(event_id);
+                CREATE INDEX IF NOT EXISTS idx_event_tags_event ON event_plant_tags(event_id);
+                CREATE INDEX IF NOT EXISTS idx_event_bookings_token ON event_prebookings(claim_token);
             """)
+        except Exception:
+            conn.rollback()
+
+        # Stage 6: is_event_exclusive column on listings
+        try:
+            cur.execute("ALTER TABLE listings ADD COLUMN IF NOT EXISTS is_event_exclusive INTEGER DEFAULT 0")
         except Exception:
             conn.rollback()
 
@@ -620,6 +736,69 @@ else:
                 FOREIGN KEY (user_id) REFERENCES users(id),
                 UNIQUE(user_id)
             );
+
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                location_name TEXT NOT NULL,
+                address TEXT DEFAULT '',
+                lat REAL DEFAULT 0,
+                lng REAL DEFAULT 0,
+                event_date TEXT NOT NULL,
+                event_time TEXT NOT NULL,
+                max_attendees INTEGER DEFAULT 0,
+                handling_fee REAL DEFAULT 0,
+                created_by INTEGER,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS event_rsvps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (event_id) REFERENCES events(id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(event_id, user_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS event_plant_tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                listing_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                is_prebooked INTEGER DEFAULT 0,
+                prebooked_by INTEGER,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (event_id) REFERENCES events(id),
+                FOREIGN KEY (listing_id) REFERENCES listings(id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(event_id, listing_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS event_prebookings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                plant_tag_id INTEGER NOT NULL,
+                booker_id INTEGER NOT NULL,
+                lister_id INTEGER NOT NULL,
+                claim_token TEXT NOT NULL UNIQUE,
+                claim_secret TEXT NOT NULL,
+                is_claimed INTEGER DEFAULT 0,
+                claimed_at TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (event_id) REFERENCES events(id),
+                FOREIGN KEY (plant_tag_id) REFERENCES event_plant_tags(id),
+                FOREIGN KEY (booker_id) REFERENCES users(id),
+                FOREIGN KEY (lister_id) REFERENCES users(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_event_rsvps_event ON event_rsvps(event_id);
+            CREATE INDEX IF NOT EXISTS idx_event_tags_event ON event_plant_tags(event_id);
+            CREATE INDEX IF NOT EXISTS idx_event_bookings_token ON event_prebookings(claim_token);
         """)
         conn.close()
 
@@ -781,7 +960,77 @@ else:
                 FOREIGN KEY (user_id) REFERENCES users(id),
                 UNIQUE(user_id)
             );
+
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                location_name TEXT NOT NULL,
+                address TEXT DEFAULT '',
+                lat REAL DEFAULT 0,
+                lng REAL DEFAULT 0,
+                event_date TEXT NOT NULL,
+                event_time TEXT NOT NULL,
+                max_attendees INTEGER DEFAULT 0,
+                handling_fee REAL DEFAULT 0,
+                created_by INTEGER,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS event_rsvps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (event_id) REFERENCES events(id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(event_id, user_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS event_plant_tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                listing_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                is_prebooked INTEGER DEFAULT 0,
+                prebooked_by INTEGER,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (event_id) REFERENCES events(id),
+                FOREIGN KEY (listing_id) REFERENCES listings(id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(event_id, listing_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS event_prebookings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                plant_tag_id INTEGER NOT NULL,
+                booker_id INTEGER NOT NULL,
+                lister_id INTEGER NOT NULL,
+                claim_token TEXT NOT NULL UNIQUE,
+                claim_secret TEXT NOT NULL,
+                is_claimed INTEGER DEFAULT 0,
+                claimed_at TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (event_id) REFERENCES events(id),
+                FOREIGN KEY (plant_tag_id) REFERENCES event_plant_tags(id),
+                FOREIGN KEY (booker_id) REFERENCES users(id),
+                FOREIGN KEY (lister_id) REFERENCES users(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_event_rsvps_event ON event_rsvps(event_id);
+            CREATE INDEX IF NOT EXISTS idx_event_tags_event ON event_plant_tags(event_id);
+            CREATE INDEX IF NOT EXISTS idx_event_bookings_token ON event_prebookings(claim_token);
         """)
+
+        # is_event_exclusive column on listings
+        try:
+            conn.execute("ALTER TABLE listings ADD COLUMN is_event_exclusive INTEGER DEFAULT 0")
+        except Exception:
+            pass
+        conn.commit()
         conn.close()
 
 
