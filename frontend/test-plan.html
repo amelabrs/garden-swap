@@ -298,10 +298,14 @@
     </div>
     <nav class="stage-nav">
       <p class="stage-nav-label">Stages</p>
-      <a class="stage-link active" onclick="showStage('stage5', this)">
+      <a class="stage-link active" onclick="showStage('stage6', this)">
+        <span class="stage-num">Stage 6</span>
+        <span class="stage-name">The Events</span>
+        <span class="badge-latest">LATEST</span>
+      </a>
+      <a class="stage-link" onclick="showStage('stage5', this)">
         <span class="stage-num">Stage 5</span>
         <span class="stage-name">AI Plant Doctor</span>
-        <span class="badge-latest">LATEST</span>
       </a>
       <a class="stage-link" onclick="showStage('stage4', this)">
         <span class="stage-num">Stage 4</span>
@@ -329,8 +333,168 @@
       <span id="check-note" style="margin-left:auto;font-size:0.74rem;color:#aaa;">Select your name to check off test cases</span>
     </div>
 
+    <!-- ════════════════════ STAGE 6 ════════════════════ -->
+    <section id="stage6" class="stage-section active">
+      <h1>📅 Stage 6 — The Events</h1>
+      <p class="stage-subtitle">In-person swap meets &nbsp;·&nbsp; RSVP &amp; plant tagging &nbsp;·&nbsp; Pre-booking &amp; QR claim verification</p>
+
+      <h2>Email to Reshma</h2>
+      <div class="email-card">
+        <div class="email-meta">
+          <strong>To:</strong> reshma.rajkumar@gmail.com<br>
+          <strong>Subject:</strong> Garden Swap — Stage 6 (The Events) is ready for testing 📅
+        </div>
+        <div class="email-body">
+          <p>Hi Reshma,</p>
+          <p>Stage 6 is live — Garden Swap now supports in-person swap meets! You can browse upcoming events, RSVP, tag which of your plants you're bringing, and pre-book someone else's plant before the event. At the event, the booker shows a QR code (or 6-digit rotating code) and the plant owner scans it to complete the swap.</p>
+          <p><strong>Test URL:</strong> <a href="https://garden-swap.onrender.com">https://garden-swap.onrender.com</a></p>
+          <div class="note">⚠️ Render free tier — may take 30–60 seconds to wake up on first load.</div>
+          <p><strong>Your login:</strong> <span class="cred-pill">reshma.rajkumar@gmail.com</span> / <span class="cred-pill">demo1234</span></p>
+          <p><strong>What's new to test:</strong></p>
+          <ol>
+            <li><strong>📅 Events tab</strong> — new tab in the bottom nav, shows upcoming swap events</li>
+            <li><strong>RSVP</strong> — tap "📅 RSVP" on an event to mark yourself as going</li>
+            <li><strong>Tag plants</strong> — tap "🌿 Tag My Plants" to select which of your listings you're bringing</li>
+            <li><strong>Event plant gallery</strong> — browse all tagged plants for that event, each shows an "Event" badge</li>
+            <li><strong>Pre-book</strong> — tap "🔖 Pre-Book" on someone else's plant to reserve it (it gets a Pre-Booked overlay)</li>
+            <li><strong>Claim code</strong> — after pre-booking, a QR code and 6-digit rotating code appear — show these to the plant owner at the event</li>
+            <li><strong>QR scanner</strong> — the plant owner taps "📷 Scan QR", scans the booker's code, and the swap is marked complete</li>
+            <li><strong>Manual code entry</strong> — if camera isn't available, the 6-digit code can be typed in instead</li>
+          </ol>
+          <p><strong>Two-person test tip:</strong> For the full pre-book → claim flow, you'll need two accounts open at the same time. Use your account as one party and priya@demo.com as the other (open in a private window).</p>
+          <p>Thanks so much!<br>Amel</p>
+        </div>
+      </div>
+
+      <h2>Stage 6 — New Test Cases <span class="section-badge badge-new">NEW</span></h2>
+
+      <div class="tc-block">
+        <div class="tc-header new">TC-S6-01 — Events Tab Navigation</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Tap 📅 Events tab without logging in</td><td>Login modal appears, redirected back to feed</td></tr>
+          <tr><td>2</td><td>Log in as reshma.rajkumar@gmail.com → tap Events</td><td>Events list loads with upcoming events</td></tr>
+          <tr><td>3</td><td>Check the nav bar</td><td>6 tabs visible: Swap, Shop, Events, Doctor, Chats, Profile</td></tr>
+          <tr><td>4</td><td>Tap any other tab and come back to Events</td><td>Events list reloads correctly</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header new">TC-S6-02 — Event List &amp; Detail</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Open Events tab</td><td>Event cards show title, date, time, location name</td></tr>
+          <tr><td>2</td><td>Check event card with a handling fee</td><td>"£X.XX handling" badge visible on card</td></tr>
+          <tr><td>3</td><td>Tap an event card</td><td>Detail view opens with full description, map link, and plant gallery</td></tr>
+          <tr><td>4</td><td>Tap "← Back to Events"</td><td>Returns to event list</td></tr>
+          <tr><td>5</td><td>Check RSVP count on an event you haven't joined</td><td>Shows "N going" (number, no tick)</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header new">TC-S6-03 — RSVP</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Open an event → tap "📅 RSVP"</td><td>Button changes to "✅ I'm going · Cancel"</td></tr>
+          <tr><td>2</td><td>Go back to event list</td><td>Event card shows "✅ Going"</td></tr>
+          <tr><td>3</td><td>Re-open event → tap "✅ I'm going · Cancel"</td><td>RSVP removed; button reverts to "📅 RSVP"</td></tr>
+          <tr><td>4</td><td>RSVP again, reload the page, reopen the event</td><td>RSVP status persists</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header new">TC-S6-04 — Tag My Plants</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Open an event → tap "🌿 Tag My Plants"</td><td>Modal opens with your active listings</td></tr>
+          <tr><td>2</td><td>Tap a listing</td><td>Row highlights with ✓; plant appears in event gallery immediately</td></tr>
+          <tr><td>3</td><td>Close modal → check plant gallery</td><td>Tagged plant shows "Event" badge</td></tr>
+          <tr><td>4</td><td>Reopen "Tag My Plants" → tap the same listing again</td><td>Tag removed; plant disappears from gallery</td></tr>
+          <tr><td>5</td><td>Tag a listing that's already been pre-booked</td><td>"Cannot untag a pre-booked plant" error shown if you try to remove it</td></tr>
+          <tr><td>6</td><td>Open a listing in the Swap feed that you've tagged</td><td>"Event Exclusive" label or badge visible on the listing</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header new">TC-S6-05 — Pre-Booking</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Open event → find a tagged plant you do NOT own → tap "🔖 Pre-Book"</td><td>Confirmation modal opens with plant name and fee note</td></tr>
+          <tr><td>2</td><td>Tap "Confirm Pre-Book"</td><td>Claim code modal opens; QR and 6-digit code displayed</td></tr>
+          <tr><td>3</td><td>Close the modal → reopen event</td><td>That plant card shows "Pre-Booked" overlay; no Pre-Book button</td></tr>
+          <tr><td>4</td><td>Tap "📲 My Code" on a plant you've pre-booked</td><td>Claim code modal reopens with same QR and live 6-digit code</td></tr>
+          <tr><td>5</td><td>Look at one of your OWN tagged plants</td><td>Pre-Book button NOT shown (can't book your own plant)</td></tr>
+          <tr><td>6</td><td>Try to pre-book a plant that's already been pre-booked by someone else</td><td>"Pre-Booked" overlay shown — no button to click</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header new">TC-S6-06 — Claim Code Display</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>After pre-booking, inspect the claim code modal</td><td>QR code displayed (black on white, readable by camera)</td></tr>
+          <tr><td>2</td><td>Watch the 6-digit code</td><td>Code updates every 60 seconds; countdown timer shown beside it</td></tr>
+          <tr><td>3</td><td>Wait for the timer to hit 0</td><td>Code changes; timer resets to 60s</td></tr>
+          <tr><td>4</td><td>Close and reopen the claim code modal</td><td>Correct current code shown immediately</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header new">TC-S6-07 — QR Scan Claim (two accounts)</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Account A: tag a plant for an event</td><td>Plant visible in event gallery</td></tr>
+          <tr><td>2</td><td>Account B (private window): open same event → pre-book Account A's plant</td><td>Claim code modal opens on Account B's screen</td></tr>
+          <tr><td>3</td><td>Account A: tap "📷 Scan QR" in event detail</td><td>Camera opens (or camera-unavailable message shown)</td></tr>
+          <tr><td>4</td><td>Account A: point camera at Account B's QR code</td><td>"Swap complete! 🌱" message appears</td></tr>
+          <tr><td>5</td><td>Reload event detail on both accounts</td><td>Plant no longer shows Pre-Booked overlay; listing marked unavailable in feed</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header new">TC-S6-08 — Manual Code Entry</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Account A: tap "📷 Scan QR" → skip camera / use manual field</td><td>Input field for 6-digit code visible below the scanner</td></tr>
+          <tr><td>2</td><td>Enter a wrong 6-digit code → tap Verify</td><td>"Invalid code" error message shown</td></tr>
+          <tr><td>3</td><td>Enter the correct current code from Account B's screen → tap Verify</td><td>"Swap complete! 🌱" — same result as QR scan</td></tr>
+          <tr><td>4</td><td>Attempt to use the same code again</td><td>"Already claimed" error</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="tc-block">
+        <div class="tc-header new">TC-S6-09 — Admin: Create Event</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Log in as amelabrs@gmail.com → Events tab</td><td>"+ Create Event" button visible in header</td></tr>
+          <tr><td>2</td><td>Log in as any other user → Events tab</td><td>"+ Create Event" button NOT visible</td></tr>
+          <tr><td>3</td><td>As admin: tap "+ Create Event" → submit with no title</td><td>Error: "Title, venue, date and time are required."</td></tr>
+          <tr><td>4</td><td>Fill all required fields → submit</td><td>Modal closes; new event appears at correct date position in list</td></tr>
+          <tr><td>5</td><td>Create event with a handling fee of £0.50</td><td>"£0.50 handling" badge shown on event card</td></tr>
+        </tbody></table>
+      </div>
+
+      <h2>Stage 5 Regression <span class="section-badge badge-reg">RECHECK</span></h2>
+      <div class="tc-block">
+        <div class="tc-header">TC-09 to TC-12 — Plant Doctor, Shop, Swap</div>
+        <table><thead><tr><th>#</th><th>Action</th><th>Expected Result</th></tr></thead><tbody>
+          <tr><td>1</td><td>Log in as priya@demo.com → 🩺 Doctor tab → upload a plant photo</td><td>Diagnosis returned successfully</td></tr>
+          <tr><td>2</td><td>Open 🛒 Shop → add to cart → checkout</td><td>Cart and checkout flow unaffected</td></tr>
+          <tr><td>3</td><td>Open 🌱 Swap feed</td><td>Listings load; tagged listings show "Event" badge if applicable</td></tr>
+          <tr><td>4</td><td>Open 💬 Chats</td><td>Existing conversations load correctly</td></tr>
+          <tr><td>5</td><td>Open 👤 Profile</td><td>Tier badge, wish list, and vendor dashboard all intact</td></tr>
+        </tbody></table>
+      </div>
+
+      <h2>Test Credentials</h2>
+      <div class="tc-block">
+        <table class="cred-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Password</th><th>Tier / Role</th></tr></thead>
+          <tbody>
+            <tr><td>Reshma Rajkumar</td><td>reshma.rajkumar@gmail.com</td><td><span class="cred-pill">demo1234</span></td><td>Tester (use this as primary)</td></tr>
+            <tr><td>Priya Sharma</td><td>priya@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-steward">🌳 Steward</span> — use as second account</td></tr>
+            <tr><td>Faizan Ahmed</td><td>faizan@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-grower">🌿 Grower</span></td></tr>
+            <tr><td>Rachel D'Souza</td><td>rachel@demo.com</td><td><span class="cred-pill">demo1234</span></td><td><span class="tier-pill tier-sprout">🌱 Sprout</span></td></tr>
+            <tr><td>Amel Rahman</td><td>amelabrs@gmail.com</td><td><span class="cred-pill">demo1234</span></td><td>Admin — can create events</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <footer>Garden Swap · Stage 6 Test Plan · All passwords are demo credentials only</footer>
+    </section>
+
     <!-- ════════════════════ STAGE 5 ════════════════════ -->
-    <section id="stage5" class="stage-section active">
+    <section id="stage5" class="stage-section">
       <h1>🩺 Stage 5 — AI Plant Doctor</h1>
       <p class="stage-subtitle">Steward-only feature &nbsp;·&nbsp; Claude AI diagnosis &nbsp;·&nbsp; 10 uses/month</p>
 
