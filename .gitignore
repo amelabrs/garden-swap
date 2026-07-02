@@ -5,3 +5,7 @@ data/gardenswap.db
 data/uploads/
 .env
 data/
+.DS_Store
+backend/.env.local
+plants/
+*.zip
