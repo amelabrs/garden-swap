@@ -42,8 +42,8 @@ function BloomNav({ page, onNavigate, notifCount, user }) {
             <span style={{ ...outfit, fontWeight: 800, fontSize: 25, color: B.green }}>Garden Swap</span>
           </div>
           <nav style={{ display: 'flex', gap: 28 }}>
-            {[['browse','Browse'],['home','How it works'],['home','Community']].map(([id, label], i) => (
-              <span key={i} onClick={() => onNavigate(id)} style={{ ...figtree, fontSize: 17, fontWeight: 600, color: page === id && i === 0 ? B.green : '#3c4b40', cursor: 'pointer' }}>{label}</span>
+            {[['browse','Browse'],['events','Events'],['home','How it works']].map(([id, label]) => (
+              <span key={id} onClick={() => onNavigate(id)} style={{ ...figtree, fontSize: 17, fontWeight: 600, color: page === id ? B.green : '#3c4b40', cursor: 'pointer' }}>{label}</span>
             ))}
           </nav>
         </div>
@@ -403,6 +403,311 @@ function ProfileView({ DS, user, listings, onViewListing }) {
   );
 }
 
+// ── Events ─────────────────────────────────────────────────────────────────
+
+const SAMPLE_EVENTS = [
+  { id:1, title:'Bangalore Plant Swap Meet', date:'2026-07-12', time:'10:00 AM', location:'Cubbon Park Lawn', address:'Kasturba Road, Bengaluru', max_attendees:40, handling_fee:0, going:18, plants:24, organiser:'Priya Sharma', upcoming:true, image:'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&q=80', description:'Our monthly community plant swap in the heart of Bangalore. Bring cuttings, seeds, or pots to swap. Free entry, all are welcome. Come early for the best picks!' },
+  { id:2, title:'Succulent & Cactus Circle', date:'2026-07-19', time:'4:00 PM', location:'Indiranagar Community Hall', address:'100 Feet Road, Indiranagar', max_attendees:20, handling_fee:50, going:11, plants:30, organiser:'Deepak Rao', upcoming:true, image:'https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?w=800&q=80', description:'Dedicated swap for succulent and cactus lovers. Small ₹50 handling fee to cover venue. Bring your rarest rosettes!' },
+  { id:3, title:'Monstera Madness Swap', date:'2026-06-21', time:'11:00 AM', location:'Koramangala Social', address:'1st Block, Koramangala', max_attendees:30, handling_fee:0, going:27, plants:41, organiser:'Faizan Ahmed', upcoming:false, image:'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?w=800&q=80', description:'A past event dedicated to aroids, monsteras, and rare tropicals. Over 40 plants found new homes.' },
+];
+
+function BloomEventCard({ event, onClick }) {
+  const isPast = !event.upcoming;
+  return (
+    <div onClick={onClick} style={{ background: B.white, borderRadius: 22, boxShadow: B.cardShadow, overflow: 'hidden', cursor: 'pointer', opacity: isPast ? .72 : 1, borderTop: `3px solid ${isPast ? B.border : B.green}` }}>
+      <div style={{ position: 'relative' }}>
+        <img src={event.image} alt={event.title} style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block', filter: isPast ? 'grayscale(40%)' : 'none' }} />
+        {isPast && <div style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(0,0,0,.45)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, ...figtree }}>Past event</div>}
+        {!isPast && event.handling_fee === 0 && <div style={{ position: 'absolute', top: 10, right: 10, background: B.green, color: '#fff', fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, ...figtree }}>Free</div>}
+        {!isPast && event.handling_fee > 0 && <div style={{ position: 'absolute', top: 10, right: 10, background: B.orange, color: '#fff', fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, ...figtree }}>₹{event.handling_fee}</div>}
+      </div>
+      <div style={{ padding: '16px 18px' }}>
+        <h3 style={{ ...outfit, fontWeight: 700, fontSize: 17, color: B.darkText, marginBottom: 8, lineHeight: 1.2 }}>{event.title}</h3>
+        <div style={{ ...figtree, fontSize: 13, color: B.softText, marginBottom: 6 }}>📅 {event.date} · {event.time}</div>
+        <div style={{ ...figtree, fontSize: 13, color: B.softText, marginBottom: 12 }}>📍 {event.location}</div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <span style={{ ...figtree, fontSize: 12, fontWeight: 600, background: '#ECF7EC', color: B.green, padding: '4px 10px', borderRadius: 999 }}>✓ {event.going} going</span>
+          <span style={{ ...figtree, fontSize: 12, fontWeight: 600, background: B.lightYellow, color: '#8A6314', padding: '4px 10px', borderRadius: 999 }}>🌿 {event.plants} plants</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateEventModal({ onClose }) {
+  const [form, setForm] = React.useState({ title:'', desc:'', location:'', address:'', date:'', time:'10:00 AM', max:20, fee:0 });
+  const times = ['9:00 AM','10:00 AM','11:00 AM','12:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM'];
+  const set = k => v => setForm(f => ({ ...f, [k]: v }));
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(31,74,50,.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: B.cream, borderRadius: '24px 24px 0 0', padding: '32px 28px 40px', width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', ...figtree }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <h2 style={{ ...outfit, fontWeight: 800, fontSize: 22, color: B.darkText }}>Create Event</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: B.softText }}>✕</button>
+        </div>
+        {[['Title','title','text'],['Description','desc','text'],['Location name','location','text'],['Address','address','text']].map(([label, key, type]) => (
+          <div key={key} style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontWeight: 600, fontSize: 14, color: B.darkText, marginBottom: 6 }}>{label}</label>
+            <input type={type} value={form[key]} onChange={e => set(key)(e.target.value)} style={{ width: '100%', padding: '12px 16px', border: `1px solid ${B.border}`, borderRadius: 12, fontSize: 15, background: B.white, ...figtree, boxSizing: 'border-box' }} />
+          </div>
+        ))}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontWeight: 600, fontSize: 14, color: B.darkText, marginBottom: 6 }}>Date</label>
+          <input type="date" value={form.date} onChange={e => set('date')(e.target.value)} style={{ width: '100%', padding: '12px 16px', border: `1px solid ${B.border}`, borderRadius: 12, fontSize: 15, background: B.white, ...figtree, boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontWeight: 600, fontSize: 14, color: B.darkText, marginBottom: 8 }}>Time</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {times.map(t => <button key={t} onClick={() => set('time')(t)} style={{ ...figtree, padding: '8px 14px', borderRadius: 999, border: `1px solid ${form.time === t ? B.green : B.border}`, background: form.time === t ? '#ECF7EC' : B.white, color: form.time === t ? B.green : B.softText, fontWeight: form.time === t ? 700 : 500, fontSize: 13, cursor: 'pointer' }}>{t}</button>)}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontWeight: 600, fontSize: 14, color: B.darkText, marginBottom: 6 }}>Max attendees</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, border: `1px solid ${B.border}`, borderRadius: 12, padding: '8px 16px', background: B.white }}>
+              <button onClick={() => set('max')(Math.max(1, form.max - 1))} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: B.green, fontWeight: 700 }}>−</button>
+              <span style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 16, color: B.darkText }}>{form.max}</span>
+              <button onClick={() => set('max')(form.max + 1)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: B.green, fontWeight: 700 }}>+</button>
+            </div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontWeight: 600, fontSize: 14, color: B.darkText, marginBottom: 6 }}>Handling fee (₹)</label>
+            <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${B.border}`, borderRadius: 12, padding: '8px 16px', background: B.white }}>
+              <span style={{ color: B.softText, marginRight: 8 }}>₹</span>
+              <input type="number" min="0" value={form.fee} onChange={e => set('fee')(Number(e.target.value))} style={{ border: 'none', background: 'none', fontSize: 15, width: '100%', ...figtree, outline: 'none' }} />
+            </div>
+          </div>
+        </div>
+        <button style={btnPrimary({ width: '100%', fontSize: 17, padding: '18px' })} onClick={onClose}>Post Event</button>
+      </div>
+    </div>
+  );
+}
+
+function PreBookModal({ plant, onClose, onConfirm }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(31,74,50,.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: B.white, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 400, ...figtree }}>
+        <img src={plant.image} alt={plant.title} style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 16, marginBottom: 20 }} />
+        <h3 style={{ ...outfit, fontWeight: 800, fontSize: 20, color: B.darkText, marginBottom: 10 }}>{plant.title}</h3>
+        <p style={{ fontSize: 14, color: B.softText, lineHeight: 1.6, marginBottom: 24 }}>You're reserving this plant. Collect it at the event using your QR code or 6-digit claim code shown to the seller.</p>
+        <button onClick={onConfirm} style={btnPrimary({ width: '100%', fontSize: 16, padding: '16px' })}>Confirm Pre-book</button>
+        <button onClick={onClose} style={{ ...figtree, width: '100%', marginTop: 10, background: 'none', border: 'none', color: B.softText, fontSize: 14, cursor: 'pointer', padding: '8px' }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function ClaimCodeScreen({ plant, onClose }) {
+  const TOTAL = 60;
+  const [secs, setSecs] = React.useState(TOTAL);
+  const [code, setCode] = React.useState(() => String(Math.floor(100000 + Math.random() * 900000)));
+  const token = React.useRef('GS-' + Math.random().toString(36).slice(2,10).toUpperCase());
+  const R = 36, CIRC = 2 * Math.PI * R;
+
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      setSecs(s => {
+        if (s <= 1) {
+          setCode(String(Math.floor(100000 + Math.random() * 900000)));
+          return TOTAL;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(token.current)}&bgcolor=1f4a32&color=FFFBF5&margin=10`;
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(31,74,50,.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: B.cream, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 480, ...figtree }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <h2 style={{ ...outfit, fontWeight: 800, fontSize: 20, color: B.darkText }}>Your Claim Code</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: B.softText }}>✕</button>
+        </div>
+        <p style={{ fontSize: 14, color: B.softText, marginBottom: 24, textAlign: 'center' }}>Show this to the seller at the event to claim <strong>{plant.title}</strong></p>
+        <div style={{ display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {/* QR panel */}
+          <div style={{ background: B.darkGreen, borderRadius: 20, padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src={qrUrl} alt="QR Code" style={{ width: 160, height: 160, borderRadius: 8 }} />
+          </div>
+          {/* Code panel */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {code.split('').map((d, i) => (
+                <div key={i} style={{ width: 40, height: 52, background: B.white, border: `2px solid ${B.border}`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', ...outfit, fontSize: 24, fontWeight: 800, color: B.darkGreen, boxShadow: B.cardShadow }}>{d}</div>
+              ))}
+            </div>
+            {/* Countdown ring */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <svg width={90} height={90}>
+                <circle cx={45} cy={45} r={R} fill="none" stroke={B.border} strokeWidth={5} />
+                <circle cx={45} cy={45} r={R} fill="none" stroke={B.green} strokeWidth={5}
+                  strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - secs / TOTAL)}
+                  strokeLinecap="round" transform="rotate(-90 45 45)" style={{ transition: 'stroke-dashoffset .9s linear' }} />
+                <text x={45} y={50} textAnchor="middle" style={{ ...figtree, fontSize: 18, fontWeight: 700, fill: B.darkText }}>{secs}s</text>
+              </svg>
+              <span style={{ fontSize: 12, color: B.softText }}>Code refreshes every 60s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QRScannerOverlay({ onClose }) {
+  const [manual, setManual] = React.useState(false);
+  const [code, setCode] = React.useState('');
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <button onClick={onClose} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,.2)', border: 'none', color: '#fff', fontSize: 22, borderRadius: '50%', width: 44, height: 44, cursor: 'pointer' }}>✕</button>
+      {!manual ? (
+        <>
+          <div style={{ position: 'relative', width: 260, height: 260 }}>
+            <div style={{ position: 'absolute', inset: 0, border: '2px solid rgba(255,255,255,.15)', borderRadius: 16 }} />
+            {[['0 0','tl'],['auto 0','tr'],['0 auto','bl'],['auto auto','br']].map(([inset, k]) => (
+              <div key={k} style={{ position: 'absolute', width: 32, height: 32, top: inset.split(' ')[0] === '0' ? 0 : 'auto', bottom: inset.split(' ')[0] === 'auto' ? 0 : 'auto', left: inset.split(' ')[1] === '0' ? 0 : 'auto', right: inset.split(' ')[1] === 'auto' ? 0 : 'auto', borderTop: k.startsWith('t') ? `3px solid ${B.green}` : 'none', borderBottom: k.startsWith('b') ? `3px solid ${B.green}` : 'none', borderLeft: k.endsWith('l') ? `3px solid ${B.green}` : 'none', borderRight: k.endsWith('r') ? `3px solid ${B.green}` : 'none', borderRadius: k === 'tl' ? '8px 0 0 0' : k === 'tr' ? '0 8px 0 0' : k === 'bl' ? '0 0 0 8px' : '0 0 8px 0' }} />
+            ))}
+            <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 2, background: `${B.green}88`, transform: 'translateY(-50%)' }} />
+          </div>
+          <p style={{ color: 'rgba(255,255,255,.7)', marginTop: 24, ...figtree, fontSize: 15 }}>Point at the plant QR code</p>
+          <button onClick={() => setManual(true)} style={{ marginTop: 16, background: 'none', border: 'none', color: B.green, fontSize: 14, fontWeight: 600, cursor: 'pointer', ...figtree }}>Enter code manually</button>
+        </>
+      ) : (
+        <div style={{ background: B.cream, borderRadius: 24, padding: '32px 28px', width: '90%', maxWidth: 360, ...figtree }}>
+          <h3 style={{ ...outfit, fontWeight: 800, fontSize: 20, color: B.darkText, marginBottom: 16 }}>Enter claim code</h3>
+          <input value={code} onChange={e => setCode(e.target.value)} placeholder="6-digit code" maxLength={6} style={{ width: '100%', padding: '14px 18px', border: `1px solid ${B.border}`, borderRadius: 12, fontSize: 22, textAlign: 'center', letterSpacing: '0.3em', ...outfit, fontWeight: 700, boxSizing: 'border-box', marginBottom: 16 }} />
+          <button style={btnPrimary({ width: '100%', fontSize: 16, padding: '16px' })} onClick={onClose}>Verify Code</button>
+          <button onClick={() => setManual(false)} style={{ ...figtree, width: '100%', marginTop: 10, background: 'none', border: 'none', color: B.softText, fontSize: 14, cursor: 'pointer' }}>← Back to scanner</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BloomEventDetail({ event, onBack, listings }) {
+  const [going, setGoing] = React.useState(false);
+  const [prebook, setPrebook] = React.useState(null);
+  const [claim, setClaim] = React.useState(null);
+  const [scanner, setScanner] = React.useState(false);
+  const plants = listings.slice(0, 6);
+  const attendees = ['Priya','Faizan','Rachel','Deepak','Amina','Joel'];
+
+  return (
+    <div style={{ background: B.cream, ...figtree, minHeight: '100vh' }}>
+      {prebook && <PreBookModal plant={prebook} onClose={() => setPrebook(null)} onConfirm={() => { setClaim(prebook); setPrebook(null); }} />}
+      {claim && <ClaimCodeScreen plant={claim} onClose={() => setClaim(null)} />}
+      {scanner && <QRScannerOverlay onClose={() => setScanner(false)} />}
+      {/* Hero */}
+      <div style={{ position: 'relative', height: 280 }}>
+        <img src={event.image} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,.1), rgba(31,74,50,.7))' }} />
+        <button onClick={onBack} style={{ position: 'absolute', top: 16, left: 16, background: 'rgba(255,255,255,.2)', border: 'none', color: '#fff', fontSize: 20, borderRadius: '50%', width: 40, height: 40, cursor: 'pointer', backdropFilter: 'blur(4px)' }}>←</button>
+        <div style={{ position: 'absolute', bottom: 20, left: 24, right: 24 }}>
+          <h1 style={{ ...outfit, fontWeight: 800, fontSize: 26, color: '#fff', lineHeight: 1.15, marginBottom: 6 }}>{event.title}</h1>
+          <div style={{ ...figtree, fontSize: 14, color: 'rgba(255,255,255,.85)' }}>by {event.organiser}</div>
+        </div>
+      </div>
+      <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 24px 80px' }}>
+        {/* Info block */}
+        <div style={{ background: B.white, borderRadius: 20, padding: '20px 22px', boxShadow: B.cardShadow, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            {[['📅',`${event.date} · ${event.time}`],['📍',event.location],['👥',`Max ${event.max_attendees} attendees`],['💸',event.handling_fee === 0 ? 'Free entry' : `₹${event.handling_fee} handling fee`]].map(([icon, text]) => (
+              <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>{icon}</span>
+                <span style={{ fontSize: 14, color: B.softText, lineHeight: 1.45 }}>{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p style={{ fontSize: 15, color: B.softText, lineHeight: 1.7, marginBottom: 24 }}>{event.description}</p>
+        {/* RSVP */}
+        <button onClick={() => setGoing(g => !g)} style={going ? btnSecondary({ width: '100%', fontSize: 17, padding: '18px', marginBottom: 24 }) : btnPrimary({ width: '100%', fontSize: 17, padding: '18px', marginBottom: 24 })}>
+          {going ? '✓ I\'m Going' : 'Join Event'}
+        </button>
+        {/* Attendees */}
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ ...outfit, fontWeight: 700, fontSize: 18, color: B.darkText, marginBottom: 14 }}>Going ({event.going + (going ? 1 : 0)})</h3>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {attendees.map(name => (
+              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, background: B.white, border: `1px solid ${B.border}`, borderRadius: 999, padding: '6px 14px 6px 8px', boxShadow: B.cardShadow }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: B.green, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12 }}>{name[0]}</div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: B.darkText }}>{name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Plants being brought */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <h3 style={{ ...outfit, fontWeight: 700, fontSize: 18, color: B.darkText }}>Plants being brought ({event.plants})</h3>
+            <button onClick={() => setScanner(true)} style={btnGreen({ fontSize: 13, padding: '8px 16px' })}>📷 Scan QR</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14 }}>
+            {plants.map(p => (
+              <div key={p.id} style={{ background: B.white, borderRadius: 16, overflow: 'hidden', boxShadow: B.cardShadow }}>
+                <img src={p.image} alt={p.title} style={{ width: '100%', height: 110, objectFit: 'cover' }} />
+                <div style={{ padding: '10px 12px' }}>
+                  <div style={{ ...figtree, fontSize: 13, fontWeight: 600, color: B.darkText, marginBottom: 8, lineHeight: 1.3 }}>{p.title}</div>
+                  <button onClick={() => setPrebook(p)} style={btnGreen({ fontSize: 12, padding: '7px 14px', width: '100%' })}>Pre-book</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BloomEvents({ onNavigate, onOpenEvent }) {
+  const [events, setEvents] = React.useState(SAMPLE_EVENTS);
+  const [showCreate, setShowCreate] = React.useState(false);
+  const upcoming = events.filter(e => e.upcoming);
+  const past = events.filter(e => !e.upcoming);
+
+  React.useEffect(() => {
+    fetch('/api/events').then(r => r.json()).then(data => {
+      const items = Array.isArray(data) ? data : (data.events || []);
+      if (items.length) setEvents(items.map(e => ({ ...e, upcoming: new Date(e.event_date) >= new Date() })));
+    }).catch(() => {});
+  }, []);
+
+  return (
+    <div style={{ background: B.cream, ...figtree, minHeight: '100vh' }}>
+      {showCreate && <CreateEventModal onClose={() => setShowCreate(false)} />}
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '32px 44px 64px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32 }}>
+          <div>
+            <h1 style={{ ...outfit, fontWeight: 800, fontSize: 40, color: B.darkText, marginBottom: 6 }}>Plant Swap Events</h1>
+            <p style={{ fontSize: 16, color: B.softText }}>Meet fellow gardeners, swap in person, and find rare plants.</p>
+          </div>
+          <button onClick={() => setShowCreate(true)} style={btnPrimary({ fontSize: 15, padding: '14px 24px' })}>+ Host an Event</button>
+        </div>
+        {upcoming.length > 0 && (
+          <div style={{ marginBottom: 48 }}>
+            <h2 style={{ ...outfit, fontWeight: 700, fontSize: 24, color: B.darkText, marginBottom: 20 }}>Upcoming</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+              {upcoming.map(e => <BloomEventCard key={e.id} event={e} onClick={() => onOpenEvent(e)} />)}
+            </div>
+          </div>
+        )}
+        {past.length > 0 && (
+          <div>
+            <h2 style={{ ...outfit, fontWeight: 700, fontSize: 24, color: B.darkText, marginBottom: 20 }}>Past Events</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+              {past.map(e => <BloomEventCard key={e.id} event={e} onClick={() => onOpenEvent(e)} />)}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── App shell ──────────────────────────────────────────────────────────────
 
 function mapListing(l) {
@@ -428,6 +733,7 @@ function GardenSwapWebApp() {
   const DS = window.GardenSwapDesignSystem_0373cf || {};
   const [page, setPage] = React.useState('home');
   const [listing, setListing] = React.useState(null);
+  const [event, setEvent] = React.useState(null);
   const [listings, setListings] = React.useState((window.GS_LISTINGS || []).slice());
   const user = { name: 'Priya Sharma', tier: 'grower' };
 
@@ -447,6 +753,7 @@ function GardenSwapWebApp() {
   const navigate = (p, data) => {
     setPage(p);
     if (data && data.listing) setListing(data.listing);
+    if (data && data.event) setEvent(data.event);
     window.scrollTo(0, 0);
   };
 
@@ -454,9 +761,11 @@ function GardenSwapWebApp() {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: B.cream }}>
       <BloomNav page={page} user={user} onNavigate={navigate} notifCount={2} />
       <div style={{ flex: 1 }}>
-        {page === 'home'    && <BloomHome onNavigate={navigate} DS={DS} listings={listings} />}
-        {page === 'browse'  && <BrowseView DS={DS} listings={listings} onOpenListing={l => navigate('detail', { listing: l })} />}
-        {page === 'detail'  && <DetailView DS={DS} listing={listing} onBack={() => navigate('browse')} onViewProfile={() => navigate('profile')} />}
+        {page === 'home'        && <BloomHome onNavigate={navigate} DS={DS} listings={listings} />}
+        {page === 'browse'      && <BrowseView DS={DS} listings={listings} onOpenListing={l => navigate('detail', { listing: l })} />}
+        {page === 'detail'      && <DetailView DS={DS} listing={listing} onBack={() => navigate('browse')} onViewProfile={() => navigate('profile')} />}
+        {page === 'events'      && <BloomEvents onNavigate={navigate} onOpenEvent={e => navigate('eventDetail', { event: e })} />}
+        {page === 'eventDetail' && <BloomEventDetail event={event} onBack={() => navigate('events')} listings={listings} />}
         {(page === 'profile' || page === 'listings' || page === 'swaps') && <ProfileView DS={DS} user={user} listings={listings} onViewListing={l => navigate('detail', { listing: l })} />}
       </div>
       <BloomFooter onNavigate={navigate} />
