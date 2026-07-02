@@ -77,9 +77,9 @@ function BloomFooter({ onNavigate }) {
 
 // ── BloomHome ──────────────────────────────────────────────────────────────
 
-function BloomHome({ onNavigate, DS }) {
+function BloomHome({ onNavigate, DS, listings }) {
   const { PlantCard } = DS;
-  const featured = (window.GS_LISTINGS || []).slice(0, 6);
+  const featured = (listings || []).slice(0, 6);
   const heroImgs = [
     { src: './assets/plant-begonia.jpeg',   alt: 'Begonia',   rot: '-2deg'  },
     { src: './assets/plant-hibiscus.jpeg',  alt: 'Hibiscus',  rot: '1deg'   },
@@ -186,12 +186,12 @@ function BloomSidebar({ filters, onChange, onClear, resultCount }) {
   );
 }
 
-function BrowseView({ DS, onOpenListing }) {
+function BrowseView({ DS, listings, onOpenListing }) {
   const { PlantCard } = DS;
   const [filters, setFilters] = React.useState({});
   const [pg, setPg] = React.useState(1);
   const PER = 9;
-  const all = window.GS_LISTINGS || [];
+  const all = listings || [];
   const filtered = all.filter(l => {
     if (filters.type   && l.plantType !== filters.type)   return false;
     if (filters.status && l.status    !== filters.status) return false;
@@ -247,7 +247,7 @@ function DetailView({ DS, listing, onBack, onViewProfile }) {
   const [thumb, setThumb] = React.useState(0);
   if (!listing) return null;
 
-  const thumbs = [listing.image, listing.image.replace('w=800','w=400')+'&sat=-30', listing.image.replace('w=800','w=400')+'&blur=1'];
+  const thumbs = [listing.image];
   const others = (window.GS_LISTINGS || []).filter(l => l.id !== listing.id).slice(0, 3);
 
   const TagPill = ({ children }) => (
@@ -330,10 +330,10 @@ function DetailView({ DS, listing, onBack, onViewProfile }) {
 
 // ── ProfileView ────────────────────────────────────────────────────────────
 
-function ProfileView({ DS, user, onViewListing }) {
+function ProfileView({ DS, user, listings, onViewListing }) {
   const { TierBadge, PlantCard, Badge, StarRating } = DS;
   const [tab, setTab] = React.useState('listings');
-  const listings = (window.GS_LISTINGS || []).slice(0, 6);
+  listings = (listings || []).slice(0, 6);
   const wishlist = window.GS_WISHLIST || [];
   const chats = window.GS_CHATS || [];
   const tabs = [['listings','My Listings',6],['swaps','Swap History',14],['wishlist','Wishlist',wishlist.length],['reviews','Reviews',8]];
@@ -394,11 +394,44 @@ function ProfileView({ DS, user, onViewListing }) {
 
 // ── App shell ──────────────────────────────────────────────────────────────
 
+function mapListing(l) {
+  const rating = l.user_rating || (l.rating_count ? l.rating_sum / l.rating_count : 4.5);
+  return {
+    id:        l.id,
+    title:     l.title,
+    status:    l.status,
+    plantType: l.plant_type,
+    condition: l.condition,
+    rarity:    l.rarity,
+    light:     l.light_needs,
+    size:      l.size,
+    distance:  l.distance_miles ? `${l.distance_miles.toFixed(1)} mi` : '—',
+    lister:    l.display_name || l.username || 'Gardener',
+    rating:    Math.round(rating * 10) / 10,
+    image:     l.image_url,
+    desc:      l.description,
+  };
+}
+
 function GardenSwapWebApp() {
   const DS = window.GardenSwapDesignSystem_0373cf || {};
   const [page, setPage] = React.useState('home');
   const [listing, setListing] = React.useState(null);
+  const [listings, setListings] = React.useState((window.GS_LISTINGS || []).slice());
   const user = { name: 'Priya Sharma', tier: 'grower' };
+
+  React.useEffect(() => {
+    fetch('/api/listings?limit=50')
+      .then(r => r.json())
+      .then(data => {
+        const items = Array.isArray(data) ? data : (data.listings || data.items || []);
+        if (items.length) setListings(items.map(mapListing));
+      })
+      .catch(() => {});
+  }, []);
+
+  // expose for child components still reading window.GS_LISTINGS
+  window.GS_LISTINGS = listings;
 
   const navigate = (p, data) => {
     setPage(p);
@@ -410,10 +443,10 @@ function GardenSwapWebApp() {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: B.cream }}>
       <BloomNav page={page} user={user} onNavigate={navigate} notifCount={2} />
       <div style={{ flex: 1 }}>
-        {page === 'home'    && <BloomHome onNavigate={navigate} DS={DS} />}
-        {page === 'browse'  && <BrowseView DS={DS} onOpenListing={l => navigate('detail', { listing: l })} />}
+        {page === 'home'    && <BloomHome onNavigate={navigate} DS={DS} listings={listings} />}
+        {page === 'browse'  && <BrowseView DS={DS} listings={listings} onOpenListing={l => navigate('detail', { listing: l })} />}
         {page === 'detail'  && <DetailView DS={DS} listing={listing} onBack={() => navigate('browse')} onViewProfile={() => navigate('profile')} />}
-        {(page === 'profile' || page === 'listings' || page === 'swaps') && <ProfileView DS={DS} user={user} onViewListing={l => navigate('detail', { listing: l })} />}
+        {(page === 'profile' || page === 'listings' || page === 'swaps') && <ProfileView DS={DS} user={user} listings={listings} onViewListing={l => navigate('detail', { listing: l })} />}
       </div>
       <BloomFooter onNavigate={navigate} />
     </div>
