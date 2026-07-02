@@ -80,7 +80,7 @@ function BloomFooter({ onNavigate }) {
 function BloomHome({ onNavigate, DS, listings }) {
   const { PlantCard } = DS;
   const all = listings || [];
-  const PER = 6;
+  const PER = 8;
   const [pg, setPg] = React.useState(1);
   const totalPages = Math.max(1, Math.ceil(all.length / PER));
   const featured = all.slice((pg - 1) * PER, pg * PER);
