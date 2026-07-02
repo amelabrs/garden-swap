@@ -1,129 +1,194 @@
-/* Garden Swap — Website Template (WebApp.jsx)
-   Uses only components that exist in the DS bundle:
-   Icon, Button, Badge, TierBadge, Card, Input, Select, PlantCard, StarRating */
+/* Garden Swap — WebApp.jsx (Bloom design system) */
 
-// ── Inline fallbacks for components not in the bundle ──────────────────
+// ── Shared helpers ─────────────────────────────────────────────────────────
 
-function Nav({ page, user, onNavigate, notifCount }) {
-  const links = [['home','Home'],['browse','Browse'],['profile','Profile']];
+const B = {
+  green:       '#2E7D52',
+  cream:       '#FFFBF5',
+  orange:      '#DD7A2E',
+  yellow:      '#E9B949',
+  lightYellow: '#FBE6B0',
+  darkText:    '#23302a',
+  softText:    '#46544a',
+  faintText:   '#6b7568',
+  border:      '#E7DFC8',
+  white:       '#fff',
+  darkGreen:   '#1f4a32',
+  cardShadow:  '0 8px 22px rgba(31,74,50,.08)',
+};
+
+const outfit = { fontFamily: 'Outfit, sans-serif' };
+const figtree = { fontFamily: 'Figtree, sans-serif' };
+
+function btnPrimary(extra) {
+  return { ...figtree, background: B.orange, color: B.white, fontWeight: 700, fontSize: 18, padding: '16px 30px', borderRadius: 999, border: 'none', boxShadow: '0 8px 20px rgba(221,122,46,.30)', cursor: 'pointer', ...extra };
+}
+function btnSecondary(extra) {
+  return { ...figtree, background: B.white, border: `2px solid ${B.green}`, color: B.green, fontWeight: 700, fontSize: 18, padding: '14px 28px', borderRadius: 999, cursor: 'pointer', ...extra };
+}
+function btnGreen(extra) {
+  return { ...figtree, background: B.green, color: B.white, fontWeight: 700, fontSize: 17, padding: '13px 26px', borderRadius: 999, border: 'none', boxShadow: '0 6px 16px rgba(46,125,82,.28)', cursor: 'pointer', ...extra };
+}
+
+// ── BloomNav ───────────────────────────────────────────────────────────────
+
+function BloomNav({ page, onNavigate, notifCount, user }) {
   return (
-    <header style={{ background:'var(--surface-chrome)', color:'white', padding:'0 var(--web-page-px)', display:'flex', alignItems:'center', height:'var(--web-nav-h,60px)', gap:32, position:'sticky', top:0, zIndex:100, boxShadow:'0 1px 8px rgba(0,0,0,.18)' }}>
-      <span onClick={() => onNavigate('home')} style={{ fontFamily:'var(--font-serif)', fontSize:'var(--text-lg)', fontWeight:600, cursor:'pointer', color:'white', letterSpacing:'-0.5px' }}>🌿 Garden Swap</span>
-      <nav style={{ display:'flex', gap:4, flex:1 }}>
-        {links.map(([id,label]) => (
-          <button key={id} onClick={() => onNavigate(id)} style={{ background:'none', border:'none', cursor:'pointer', color: page===id ? 'white' : 'rgba(255,255,255,.65)', fontFamily:'var(--font-sans)', fontSize:'var(--text-sm)', fontWeight: page===id ? 600 : 400, padding:'6px 14px', borderRadius:'var(--radius)', background: page===id ? 'rgba(255,255,255,.15)' : 'none' }}>
-            {label}
-          </button>
-        ))}
-      </nav>
-      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        {notifCount > 0 && <span style={{ background:'var(--clay-600)', color:'white', borderRadius:'var(--radius-badge)', fontSize:'var(--text-xs)', fontWeight:700, padding:'2px 8px' }}>{notifCount}</span>}
-        <div style={{ width:34, height:34, borderRadius:'50%', background:'var(--sage-300)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, color:'var(--pine-900)', cursor:'pointer' }} onClick={() => onNavigate('profile')}>{(user?.name||'?').charAt(0)}</div>
+    <header style={{ background: B.cream, borderBottom: `1px solid ${B.border}`, position: 'sticky', top: 0, zIndex: 100 }}>
+      <div style={{ maxWidth: 1320, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 44px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+          <div onClick={() => onNavigate('home')} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: B.green }} />
+            <span style={{ ...outfit, fontWeight: 800, fontSize: 25, color: B.green }}>Garden Swap</span>
+          </div>
+          <nav style={{ display: 'flex', gap: 28 }}>
+            {[['browse','Browse'],['home','How it works'],['home','Community']].map(([id, label], i) => (
+              <span key={i} onClick={() => onNavigate(id)} style={{ ...figtree, fontSize: 17, fontWeight: 600, color: page === id && i === 0 ? B.green : '#3c4b40', cursor: 'pointer' }}>{label}</span>
+            ))}
+          </nav>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          {notifCount > 0 && <span style={{ background: B.orange, color: B.white, borderRadius: 999, fontSize: 12, fontWeight: 700, padding: '2px 10px' }}>{notifCount}</span>}
+          <span onClick={() => onNavigate('profile')} style={{ ...figtree, fontSize: 17, fontWeight: 600, color: '#3c4b40', cursor: 'pointer' }}>Sign in</span>
+          <button onClick={() => onNavigate('browse')} style={btnGreen()}>Join free</button>
+        </div>
       </div>
     </header>
   );
 }
 
-function Footer({ onNavigate }) {
+// ── BloomFooter ────────────────────────────────────────────────────────────
+
+function BloomFooter({ onNavigate }) {
   return (
-    <footer style={{ background:'var(--pine-900)', color:'rgba(255,255,255,.6)', padding:'40px var(--web-page-px)', marginTop:'auto' }}>
-      <div style={{ maxWidth:'var(--web-content-lg)', margin:'0 auto', display:'flex', flexWrap:'wrap', gap:32, justifyContent:'space-between', alignItems:'flex-start' }}>
+    <footer style={{ background: B.darkGreen, padding: '40px 44px', marginTop: 'auto' }}>
+      <div style={{ maxWidth: 1320, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 32, justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <div style={{ fontFamily:'var(--font-serif)', fontSize:'var(--text-lg)', color:'white', marginBottom:6 }}>🌿 Garden Swap</div>
-          <div style={{ fontSize:'var(--text-sm)' }}>Hyper-local plant trading · Bangalore</div>
+          <div style={{ ...outfit, fontSize: 18, fontWeight: 800, color: B.white, marginBottom: 6 }}>🌿 Garden Swap</div>
+          <div style={{ ...figtree, fontSize: 14, color: 'rgba(255,255,255,.6)' }}>Hyper-local plant trading · Bangalore</div>
         </div>
-        {[['Browse','browse'],['Profile','profile'],['About','home']].map(([l,id]) => (
-          <button key={id} onClick={() => onNavigate(id)} style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,.6)', fontSize:'var(--text-sm)', fontFamily:'var(--font-sans)' }}>{l}</button>
+        {[['Browse','browse'],['Profile','profile'],['About','home']].map(([label, id]) => (
+          <button key={id} onClick={() => onNavigate(id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.6)', fontSize: 14, ...figtree }}>{label}</button>
         ))}
       </div>
     </footer>
   );
 }
 
-function Breadcrumb({ items }) {
+// ── BloomHome ──────────────────────────────────────────────────────────────
+
+function BloomHome({ onNavigate, DS }) {
+  const { PlantCard } = DS;
+  const featured = (window.GS_LISTINGS || []).slice(0, 6);
+  const heroImgs = [
+    { src: './assets/plant-begonia.jpeg',   alt: 'Begonia',   rot: '-2deg'  },
+    { src: './assets/plant-hibiscus.jpeg',  alt: 'Hibiscus',  rot: '1deg'   },
+    { src: './assets/plant-caladium.jpeg',  alt: 'Caladium',  rot: '-1deg'  },
+    { src: './assets/plant-succulent.jpeg', alt: 'Succulent', rot: '2deg'   },
+  ];
+  const cats = ['🌿 Tropicals','🌵 Succulents','✂️ Cuttings','🌱 Seedlings','🌺 Flowering','🌾 Herbs'];
+
   return (
-    <nav style={{ display:'flex', alignItems:'center', gap:6, fontSize:'var(--text-sm)', color:'var(--text-faint)', marginBottom:4 }}>
-      {items.map((item, i) => (
-        <React.Fragment key={i}>
-          {i > 0 && <span style={{ opacity:.4 }}>/</span>}
-          {item.onClick
-            ? <button onClick={item.onClick} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--fern-600)', fontFamily:'var(--font-sans)', fontSize:'var(--text-sm)', padding:0 }}>{item.label}</button>
-            : <span style={{ color:'var(--ink-faint)' }}>{item.label}</span>}
-        </React.Fragment>
-      ))}
-    </nav>
+    <div style={{ background: B.cream, ...figtree }}>
+      {/* Hero */}
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '0 24px' }}>
+        <section style={{
+          background: 'linear-gradient(135deg, #ECF7EC, #FBF1D8)',
+          borderRadius: 30,
+          padding: '56px 52px',
+          display: 'grid',
+          gridTemplateColumns: '1.05fr 0.95fr',
+          gap: 48,
+          alignItems: 'center',
+          margin: '16px 0',
+        }}>
+          {/* Left */}
+          <div>
+            <span style={{ display: 'inline-block', background: B.lightYellow, color: '#8A6314', fontWeight: 700, fontSize: 14, letterSpacing: '.06em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 999, marginBottom: 22 }}>
+              🌱 grow together
+            </span>
+            <h1 style={{ ...outfit, fontWeight: 800, fontSize: 54, lineHeight: 1.04, letterSpacing: '-.02em', color: B.darkGreen, marginBottom: 24 }}>
+              Swap plants with gardeners down the lane.
+            </h1>
+            <p style={{ fontSize: 21, lineHeight: 1.55, color: B.softText, marginBottom: 30, maxWidth: 470 }}>
+              Swap cuttings, share seedlings, and meet the green-thumbs on your street. It's free, friendly and a little bit addictive.
+            </p>
+            {/* Search */}
+            <div style={{ display: 'flex', alignItems: 'center', background: B.white, border: `1px solid ${B.border}`, borderRadius: 999, padding: '8px 8px 8px 24px', maxWidth: 480, boxShadow: '0 6px 22px rgba(31,74,50,.07)', marginBottom: 24 }}>
+              <span style={{ fontSize: 16, color: '#8a857a', flex: 1 }}>Search "monstera", "tomato seeds"…</span>
+              <button onClick={() => onNavigate('browse')} style={btnGreen({ fontSize: 16, padding: '11px 22px' })}>Search</button>
+            </div>
+            {/* CTAs */}
+            <div style={{ display: 'flex', gap: 14, marginBottom: 24, flexWrap: 'wrap' }}>
+              <button onClick={() => onNavigate('browse')} style={btnPrimary()}>Start swapping</button>
+              <button onClick={() => onNavigate('browse')} style={btnSecondary()}>See how it works</button>
+            </div>
+            <p style={{ fontSize: 16, color: B.faintText }}>★ 1,240 plants rehomed this month · free to join</p>
+          </div>
+          {/* Right — 2×2 image grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {heroImgs.map(({ src, alt, rot }) => (
+              <img key={alt} src={src} alt={alt} style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 24, transform: `rotate(${rot})`, boxShadow: '0 10px 24px rgba(31,74,50,.16)' }} />
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* Category chips */}
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '32px 44px 0' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {cats.map(c => (
+            <button key={c} onClick={() => onNavigate('browse')} style={{ ...figtree, background: B.white, border: `1px solid ${B.border}`, color: B.darkText, fontWeight: 600, fontSize: 15, padding: '10px 20px', borderRadius: 999, cursor: 'pointer', boxShadow: B.cardShadow }}>{c}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Featured listings */}
+      {featured.length > 0 && (
+        <div style={{ maxWidth: 1320, margin: '0 auto', padding: '40px 44px 64px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 24 }}>
+            <h2 style={{ ...outfit, fontWeight: 700, fontSize: 28, color: B.darkText }}>Plants near you</h2>
+            <button onClick={() => onNavigate('browse')} style={{ ...figtree, background: 'none', border: 'none', color: B.green, fontWeight: 600, fontSize: 16, cursor: 'pointer' }}>See all →</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
+            {featured.map(l => <PlantCard key={l.id} image={l.image} title={l.title} status={l.status} plantType={l.plantType} rarity={l.rarity} distance={l.distance} lister={l.lister} rating={l.rating} onClick={() => onNavigate('browse')} />)}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
-function Sidebar({ filters, onChange, onClear, resultCount }) {
+// ── BrowseView ─────────────────────────────────────────────────────────────
+
+function BloomSidebar({ filters, onChange, onClear, resultCount }) {
   const types = ['Houseplant','Succulent','Cutting','Herb','Vegetable','Seed'];
   const lights = ['Full Sun','Partial Sun','Low Light','Shade'];
   return (
-    <aside style={{ width:220, flexShrink:0, background:'var(--card)', border:'1px solid var(--line)', borderRadius:'var(--radius-card)', padding:'20px 16px', position:'sticky', top:'calc(var(--web-nav-h,60px) + 16px)' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-        <span style={{ fontWeight:600, fontSize:'var(--text-sm)', color:'var(--ink)' }}>Filters</span>
-        <button onClick={onClear} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--fern-600)', fontSize:'var(--text-xs)', fontWeight:600 }}>Clear</button>
+    <aside style={{ width: 248, flexShrink: 0, background: B.white, border: `1px solid ${B.border}`, borderRadius: 24, padding: '24px 20px', position: 'sticky', top: 90, boxShadow: B.cardShadow }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <span style={{ ...figtree, fontWeight: 700, fontSize: 16, color: B.darkText }}>Filters</span>
+        <button onClick={onClear} style={{ ...figtree, background: 'none', border: 'none', cursor: 'pointer', color: B.green, fontSize: 14, fontWeight: 600 }}>Clear</button>
       </div>
-      <div style={{ marginBottom:14 }}>
-        <div style={{ fontSize:'var(--text-xs)', fontWeight:700, textTransform:'uppercase', letterSpacing:'var(--tracking-caps)', color:'var(--text-faint)', marginBottom:8 }}>Status</div>
-        {['free','swap'].map(s => (
-          <label key={s} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6, cursor:'pointer', fontSize:'var(--text-sm)', color:'var(--text-body)' }}>
-            <input type="checkbox" checked={filters.status===s} onChange={() => onChange({...filters, status: filters.status===s ? undefined : s})} />
-            {s === 'free' ? '🎁 Free' : '🔄 Swap'}
-          </label>
-        ))}
-      </div>
-      <div style={{ marginBottom:14 }}>
-        <div style={{ fontSize:'var(--text-xs)', fontWeight:700, textTransform:'uppercase', letterSpacing:'var(--tracking-caps)', color:'var(--text-faint)', marginBottom:8 }}>Plant Type</div>
-        {types.map(t => (
-          <label key={t} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6, cursor:'pointer', fontSize:'var(--text-sm)', color:'var(--text-body)' }}>
-            <input type="checkbox" checked={filters.type===t} onChange={() => onChange({...filters, type: filters.type===t ? undefined : t})} />
-            {t}
-          </label>
-        ))}
-      </div>
-      <div>
-        <div style={{ fontSize:'var(--text-xs)', fontWeight:700, textTransform:'uppercase', letterSpacing:'var(--tracking-caps)', color:'var(--text-faint)', marginBottom:8 }}>Light</div>
-        {lights.map(l => (
-          <label key={l} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6, cursor:'pointer', fontSize:'var(--text-sm)', color:'var(--text-body)' }}>
-            <input type="checkbox" checked={filters.light===l} onChange={() => onChange({...filters, light: filters.light===l ? undefined : l})} />
-            {l}
-          </label>
-        ))}
-      </div>
-      <div style={{ marginTop:16, paddingTop:14, borderTop:'1px solid var(--line)', fontSize:'var(--text-xs)', color:'var(--text-faint)' }}>{resultCount} result{resultCount!==1?'s':''}</div>
+      {[['Status', ['free','swap'], 'status'], ['Plant Type', types, 'type'], ['Light', lights, 'light']].map(([label, opts, key]) => (
+        <div key={key} style={{ marginBottom: 18 }}>
+          <div style={{ ...figtree, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: B.softText, marginBottom: 10 }}>{label}</div>
+          {opts.map(o => (
+            <label key={o} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer', ...figtree, fontSize: 15, color: B.darkText }}>
+              <input type="checkbox" checked={filters[key] === o} onChange={() => onChange({ ...filters, [key]: filters[key] === o ? undefined : o })} />
+              {key === 'status' ? (o === 'free' ? '🎁 Free' : '🔄 Swap') : o}
+            </label>
+          ))}
+        </div>
+      ))}
+      <div style={{ paddingTop: 14, borderTop: `1px solid ${B.border}`, ...figtree, fontSize: 13, color: B.softText }}>{resultCount} result{resultCount !== 1 ? 's' : ''}</div>
     </aside>
   );
 }
 
-function Pagination({ page, totalPages, onPage }) {
-  return (
-    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-      <button onClick={() => onPage(page-1)} disabled={page<=1} style={{ padding:'7px 16px', border:'1px solid var(--line)', borderRadius:'var(--radius)', background:'var(--card)', cursor:page<=1?'default':'pointer', opacity:page<=1?.4:1, fontFamily:'var(--font-sans)', fontSize:'var(--text-sm)' }}>← Prev</button>
-      <span style={{ fontSize:'var(--text-sm)', color:'var(--text-faint)', padding:'0 8px' }}>Page {page} of {totalPages}</span>
-      <button onClick={() => onPage(page+1)} disabled={page>=totalPages} style={{ padding:'7px 16px', border:'1px solid var(--line)', borderRadius:'var(--radius)', background:'var(--card)', cursor:page>=totalPages?'default':'pointer', opacity:page>=totalPages?.4:1, fontFamily:'var(--font-sans)', fontSize:'var(--text-sm)' }}>Next →</button>
-    </div>
-  );
-}
-
-function Alert({ variant, title, children }) {
-  const colors = { success: { bg:'var(--mint-100)', border:'var(--fern-600)', icon:'✅' }, error: { bg:'#fee2e2', border:'#dc2626', icon:'❌' } };
-  const c = colors[variant] || colors.success;
-  return (
-    <div style={{ padding:'14px 16px', background:c.bg, border:`1px solid ${c.border}`, borderRadius:'var(--radius-card)', fontSize:'var(--text-sm)', color:'var(--ink)' }}>
-      {title && <div style={{ fontWeight:600, marginBottom:4 }}>{c.icon} {title}</div>}
-      {children}
-    </div>
-  );
-}
-
-// ── Views ──────────────────────────────────────────────────────────────
-
 function BrowseView({ DS, onOpenListing }) {
-  const { Select, PlantCard } = DS;
+  const { PlantCard } = DS;
   const [filters, setFilters] = React.useState({});
-  const [viewMode, setViewMode] = React.useState('grid');
-  const [sortBy, setSortBy] = React.useState('distance');
   const [pg, setPg] = React.useState(1);
   const PER = 9;
   const all = window.GS_LISTINGS || [];
@@ -135,204 +200,222 @@ function BrowseView({ DS, onOpenListing }) {
   });
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const items = filtered.slice((pg - 1) * PER, pg * PER);
-  const active = Object.entries(filters).filter(([, v]) => v);
   const setF = f => { setFilters(f); setPg(1); };
 
   return (
-    <div style={{ maxWidth:'var(--web-content-lg)', margin:'0 auto', padding:'28px var(--web-page-px) 64px' }}>
-      <Breadcrumb items={[{ label:'Home', onClick:()=>{} }, { label:'Browse Plants' }]} />
-      <div style={{ display:'flex', gap:36, marginTop:24, alignItems:'flex-start' }}>
-        <Sidebar filters={filters} onChange={setF} onClear={() => setF({})} resultCount={filtered.length} />
-        <main style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:16, flexWrap:'wrap', gap:12 }}>
-            <div>
-              <h1 style={{ fontFamily:'var(--font-serif)', fontSize:'var(--text-xl)', fontWeight:500, color:'var(--ink)' }}>Plants near you</h1>
-              <p style={{ fontSize:'var(--text-sm)', color:'var(--text-faint)', marginTop:3 }}>{filtered.length} listings · within 10 mi</p>
+    <div style={{ background: B.cream, ...figtree, minHeight: '100vh' }}>
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '32px 44px 64px' }}>
+        {/* Page header */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontSize: 14, color: B.softText, marginBottom: 8 }}>
+            <span style={{ color: B.green, cursor: 'pointer' }}>Home</span> / Browse Plants
+          </div>
+          <h1 style={{ ...outfit, fontWeight: 800, fontSize: 40, color: B.darkText, marginBottom: 16 }}>Plants near you</h1>
+          {/* Search bar */}
+          <div style={{ display: 'flex', alignItems: 'center', background: B.white, border: `1px solid ${B.border}`, borderRadius: 999, padding: '8px 8px 8px 24px', maxWidth: 560, boxShadow: '0 6px 22px rgba(31,74,50,.07)', marginBottom: 16 }}>
+            <span style={{ fontSize: 15, color: '#8a857a', flex: 1 }}>Search plants…</span>
+            <button style={btnGreen({ fontSize: 15, padding: '10px 22px' })}>Search</button>
+          </div>
+          <p style={{ fontSize: 15, color: B.softText }}>{filtered.length} listings · within 10 km</p>
+        </div>
+        <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start' }}>
+          <BloomSidebar filters={filters} onChange={setF} onClear={() => setF({})} resultCount={filtered.length} />
+          <main style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
+              {items.map(l => <PlantCard key={l.id} image={l.image} title={l.title} status={l.status} plantType={l.plantType} rarity={l.rarity} distance={l.distance} lister={l.lister} rating={l.rating} onClick={() => onOpenListing(l)} />)}
             </div>
-            <div style={{ display:'flex', gap:10 }}>
-              <Select size="sm" value={sortBy} onChange={e => setSortBy(e.target.value)}
-                options={[{value:'distance',label:'Nearest first'},{value:'newest',label:'Newest'},{value:'rating',label:'Top rated'}]} />
-              <div style={{ display:'flex', border:'1px solid var(--line)', borderRadius:'var(--radius)', overflow:'hidden' }}>
-                {['grid','list'].map(m => (
-                  <button key={m} onClick={() => setViewMode(m)} style={{ padding:'7px 11px', border:'none', cursor:'pointer', background:viewMode===m?'var(--fern-600)':'var(--card)', color:viewMode===m?'white':'var(--ink-faint)' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill={m==='grid'?'currentColor':'none'} stroke={m==='list'?'currentColor':'none'} strokeWidth="2" strokeLinecap="round">
-                      {m==='grid' ? <path d="M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h8v8h-8z"/> : <path d="M3 6h18M3 12h18M3 18h18"/>}
-                    </svg>
-                  </button>
-                ))}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 40 }}>
+                <button onClick={() => setPg(p => Math.max(1, p - 1))} disabled={pg <= 1} style={{ ...figtree, padding: '10px 20px', border: `1px solid ${B.border}`, borderRadius: 999, background: B.white, cursor: pg <= 1 ? 'default' : 'pointer', opacity: pg <= 1 ? .4 : 1, fontWeight: 600 }}>← Prev</button>
+                <span style={{ padding: '10px 16px', fontSize: 14, color: B.softText }}>Page {pg} of {totalPages}</span>
+                <button onClick={() => setPg(p => Math.min(totalPages, p + 1))} disabled={pg >= totalPages} style={{ ...figtree, padding: '10px 20px', border: `1px solid ${B.border}`, borderRadius: 999, background: B.white, cursor: pg >= totalPages ? 'default' : 'pointer', opacity: pg >= totalPages ? .4 : 1, fontWeight: 600 }}>Next →</button>
               </div>
-            </div>
-          </div>
-          {active.length > 0 && (
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:16 }}>
-              {active.map(([k, v]) => (
-                <span key={k} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px 4px 12px', background:'var(--mint-100)', color:'var(--pine-700)', borderRadius:'var(--radius-pill)', fontSize:'var(--text-xs)', fontWeight:600 }}>
-                  {v}
-                  <button onClick={() => setF({...filters,[k]:undefined})} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'var(--pine-700)', display:'flex', lineHeight:1 }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          <div style={{ display:'grid', gridTemplateColumns:viewMode==='grid'?'repeat(auto-fill, minmax(220px, 1fr))':'1fr', gap:viewMode==='grid'?20:12 }}>
-            {items.map(l => <PlantCard key={l.id} image={l.image} title={l.title} status={l.status} plantType={l.plantType} rarity={l.rarity} distance={l.distance} lister={l.lister} rating={l.rating} layout={viewMode==='list'?'horizontal':'vertical'} onClick={() => onOpenListing(l)} />)}
-          </div>
-          {totalPages > 1 && <div style={{ display:'flex', justifyContent:'center', marginTop:40 }}><Pagination page={pg} totalPages={totalPages} onPage={setPg} /></div>}
-        </main>
+            )}
+          </main>
+        </div>
       </div>
     </div>
   );
 }
 
+// ── DetailView ─────────────────────────────────────────────────────────────
+
 function DetailView({ DS, listing, onBack, onViewProfile }) {
-  const { Badge, Icon, Button, StarRating, PlantCard } = DS;
+  const { Badge, Icon, StarRating, PlantCard } = DS;
   const [requested, setRequested] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const [thumb, setThumb] = React.useState(0);
   if (!listing) return null;
+
   const thumbs = [listing.image, listing.image.replace('w=800','w=400')+'&sat=-30', listing.image.replace('w=800','w=400')+'&blur=1'];
-  const others = (window.GS_LISTINGS||[]).filter(l => l.id !== listing.id).slice(0, 3);
-  const Tag = ({ icon, label }) => (
-    <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius:'var(--radius-pill)', background:'var(--paper-raised)', border:'1px solid var(--line)', fontSize:'var(--text-sm)', color:'var(--text-subtle)' }}>
-      <Icon name={icon} size={13} color="var(--sage-300)" /> {label}
-    </span>
+  const others = (window.GS_LISTINGS || []).filter(l => l.id !== listing.id).slice(0, 3);
+
+  const TagPill = ({ children }) => (
+    <span style={{ ...figtree, display: 'inline-block', background: B.white, border: `1px solid ${B.border}`, color: B.softText, fontSize: 14, fontWeight: 500, padding: '6px 14px', borderRadius: 999 }}>{children}</span>
   );
+
   return (
-    <div style={{ maxWidth:'var(--web-content-lg)', margin:'0 auto', padding:'28px var(--web-page-px) 72px' }}>
-      <Breadcrumb items={[{label:'Home',onClick:()=>{}},{label:'Browse Plants',onClick:onBack},{label:listing.title}]} />
-      <div style={{ display:'grid', gridTemplateColumns:'1.1fr 0.9fr', gap:52, marginTop:28 }}>
-        <div>
-          <div style={{ borderRadius:'var(--radius-card)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-            <img src={thumbs[thumb]} alt={listing.title} style={{ width:'100%', height:460, objectFit:'cover', display:'block', background:'linear-gradient(150deg,var(--mint-200),var(--fern-400))' }} />
-          </div>
-          <div style={{ display:'flex', gap:10, marginTop:12 }}>
-            {thumbs.map((src, i) => <img key={i} src={src} alt="" onClick={() => setThumb(i)} style={{ width:82, height:62, objectFit:'cover', borderRadius:'var(--radius)', cursor:'pointer', border:i===thumb?'2px solid var(--fern-600)':'2px solid var(--line)', background:'var(--mint-200)' }} />)}
-          </div>
+    <div style={{ background: B.cream, ...figtree, minHeight: '100vh' }}>
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '32px 44px 72px' }}>
+        <div style={{ fontSize: 14, color: B.softText, marginBottom: 24 }}>
+          <span onClick={onBack} style={{ color: B.green, cursor: 'pointer' }}>Home</span>
+          {' / '}
+          <span onClick={onBack} style={{ color: B.green, cursor: 'pointer' }}>Browse Plants</span>
+          {' / '}
+          <span>{listing.title}</span>
         </div>
-        <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-            <Badge variant={listing.status==='free'?'free':'swap'}>{listing.status==='free'?'Free':'Swap'}</Badge>
-            {listing.rarity   && <Badge variant="rarity">{listing.rarity}</Badge>}
-            {listing.plantType && <Badge variant="type">{listing.plantType}</Badge>}
-          </div>
-          <h1 style={{ fontFamily:'var(--font-serif)', fontSize:'var(--text-2xl)', fontWeight:400, letterSpacing:'var(--tracking-tight)', color:'var(--ink)', lineHeight:1.1 }}>{listing.title}</h1>
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-            {listing.light     && <Tag icon="sun"    label={listing.light} />}
-            {listing.condition && <Tag icon="ruler"  label={listing.condition} />}
-            {listing.size      && <Tag icon="sprout" label={`${listing.size} plant`} />}
-            {listing.distance  && <Tag icon="mapPin" label={listing.distance} />}
-          </div>
-          <p style={{ fontSize:'var(--text-base)', color:'var(--text-body)', lineHeight:'var(--leading-normal)' }}>{listing.desc}</p>
-          <div style={{ height:1, background:'var(--line)' }} />
-          <div onClick={onViewProfile} style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 16px', borderRadius:'var(--radius-card)', background:'var(--paper-raised)', border:'1px solid var(--line)', cursor:'pointer' }}>
-            <div style={{ width:44, height:44, borderRadius:'50%', background:'var(--fern-600)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.1rem', fontWeight:700, color:'var(--paper)', flexShrink:0 }}>{(listing.lister||'?').charAt(0)}</div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontWeight:600, fontSize:'var(--text-sm)', color:'var(--ink)' }}>{listing.lister}</div>
-              <div style={{ fontSize:'var(--text-xs)', color:'var(--text-faint)', marginTop:2 }}>Grower · 14 swaps completed</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 52, alignItems: 'flex-start' }}>
+          {/* Gallery */}
+          <div>
+            <div style={{ borderRadius: 24, overflow: 'hidden', boxShadow: '0 12px 32px rgba(31,74,50,.12)' }}>
+              <img src={thumbs[thumb]} alt={listing.title} style={{ width: '100%', height: 480, objectFit: 'cover', display: 'block', background: '#ECF7EC' }} />
             </div>
-            <StarRating value={listing.rating} />
+            <div style={{ display: 'flex', gap: 12, marginTop: 14 }}>
+              {thumbs.map((src, i) => (
+                <img key={i} src={src} alt="" onClick={() => setThumb(i)} style={{ width: 88, height: 66, objectFit: 'cover', borderRadius: 12, cursor: 'pointer', border: i === thumb ? `2px solid ${B.green}` : `2px solid ${B.border}`, background: '#ECF7EC' }} />
+              ))}
+            </div>
           </div>
-          {requested
-            ? <Alert variant="success" title="Request sent!">{listing.lister} will get back to you within 48 hours.</Alert>
-            : <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                <Button size="lg" full onClick={() => setRequested(true)}><Icon name={listing.status==='free'?'gift':'repeat'} size={18} />{listing.status==='free'?'Request to Collect':'Request Swap'}</Button>
-                <Button variant="outline" size="lg" full onClick={() => setSaved(s=>!s)}><Icon name="heart" size={18} />{saved?'Saved to Wishlist':'Save to Wishlist'}</Button>
-              </div>}
+          {/* Info */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Badge variant={listing.status === 'free' ? 'free' : 'swap'}>{listing.status === 'free' ? 'Free' : 'Swap'}</Badge>
+              {listing.rarity    && <Badge variant="rarity">{listing.rarity}</Badge>}
+              {listing.plantType && <Badge variant="type">{listing.plantType}</Badge>}
+            </div>
+            <h1 style={{ ...outfit, fontWeight: 800, fontSize: 36, lineHeight: 1.1, color: B.darkText }}>{listing.title}</h1>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {listing.light     && <TagPill>☀️ {listing.light}</TagPill>}
+              {listing.condition && <TagPill>📐 {listing.condition}</TagPill>}
+              {listing.size      && <TagPill>🪴 {listing.size} plant</TagPill>}
+              {listing.distance  && <TagPill>📍 {listing.distance}</TagPill>}
+            </div>
+            <p style={{ fontSize: 16, color: B.softText, lineHeight: 1.65 }}>{listing.desc}</p>
+            <div style={{ height: 1, background: B.border }} />
+            {/* Owner card */}
+            <div onClick={onViewProfile} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', borderRadius: 20, background: B.white, border: `1px solid ${B.border}`, cursor: 'pointer', boxShadow: B.cardShadow }}>
+              <div style={{ width: 46, height: 46, borderRadius: '50%', background: B.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 700, color: B.white, flexShrink: 0 }}>{(listing.lister || '?').charAt(0)}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: B.darkText }}>{listing.lister}</div>
+                <div style={{ fontSize: 13, color: B.softText, marginTop: 2 }}>Grower · 14 swaps completed</div>
+              </div>
+              <StarRating value={listing.rating} />
+            </div>
+            {/* CTAs */}
+            {requested
+              ? <div style={{ padding: '16px 20px', background: '#ECF7EC', borderRadius: 16, border: `1px solid ${B.green}`, color: B.darkGreen, fontWeight: 600 }}>✅ Request sent! {listing.lister} will get back to you within 48 hours.</div>
+              : <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <button onClick={() => setRequested(true)} style={btnPrimary({ width: '100%', fontSize: 17, padding: '18px 24px' })}>
+                    {listing.status === 'free' ? '🎁 Request to Collect' : '🔄 Request Swap'}
+                  </button>
+                  <button onClick={() => setSaved(s => !s)} style={btnSecondary({ width: '100%', fontSize: 17, padding: '16px 24px' })}>
+                    {saved ? '❤️ Saved to Wishlist' : '🤍 Save to Wishlist'}
+                  </button>
+                </div>}
+          </div>
         </div>
+        {/* More near you */}
+        {others.length > 0 && (
+          <div style={{ marginTop: 72 }}>
+            <h2 style={{ ...outfit, fontWeight: 700, fontSize: 28, color: B.darkText, marginBottom: 24 }}>More near you</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
+              {others.map(l => <PlantCard key={l.id} image={l.image} title={l.title} status={l.status} plantType={l.plantType} rarity={l.rarity} distance={l.distance} lister={l.lister} rating={l.rating} onClick={() => {}} />)}
+            </div>
+          </div>
+        )}
       </div>
-      {others.length > 0 && (
-        <div style={{ marginTop:64 }}>
-          <h2 style={{ fontFamily:'var(--font-serif)', fontSize:'var(--text-lg)', fontWeight:500, color:'var(--ink)', marginBottom:20 }}>More near you</h2>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:20 }}>
-            {others.map(l => <PlantCard key={l.id} image={l.image} title={l.title} status={l.status} plantType={l.plantType} rarity={l.rarity} distance={l.distance} lister={l.lister} rating={l.rating} onClick={() => {}} />)}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
+// ── ProfileView ────────────────────────────────────────────────────────────
+
 function ProfileView({ DS, user, onViewListing }) {
-  const { TierBadge, PlantCard, Badge, Icon, StarRating, Button } = DS;
+  const { TierBadge, PlantCard, Badge, StarRating } = DS;
   const [tab, setTab] = React.useState('listings');
-  const listings = (window.GS_LISTINGS||[]).slice(0, 6);
+  const listings = (window.GS_LISTINGS || []).slice(0, 6);
   const wishlist = window.GS_WISHLIST || [];
   const chats = window.GS_CHATS || [];
   const tabs = [['listings','My Listings',6],['swaps','Swap History',14],['wishlist','Wishlist',wishlist.length],['reviews','Reviews',8]];
   const reviews = [
-    {from:'Arjun',text:'Quick and easy swap, plant was exactly as described!',rating:5,date:'2 weeks ago'},
-    {from:'Meera',text:'Really healthy cuttings. Super helpful and responsive.',rating:5,date:'1 month ago'},
-    {from:'Kabir',text:'Great experience overall. Would swap again.',rating:4,date:'2 months ago'},
+    { from: 'Arjun', text: 'Quick and easy swap, plant was exactly as described!', rating: 5, date: '2 weeks ago' },
+    { from: 'Meera', text: 'Really healthy cuttings. Super helpful and responsive.', rating: 5, date: '1 month ago' },
+    { from: 'Kabir', text: 'Great experience overall. Would swap again.', rating: 4, date: '2 months ago' },
   ];
+  const stats = [['6','Listings'],['14','Swaps'],['4.9','Rating'],['8','Reviews']];
+
   return (
-    <div style={{ maxWidth:'var(--web-content-lg)', margin:'0 auto', paddingBottom:72 }}>
-      <div style={{ height:200, position:'relative', background:'linear-gradient(130deg,var(--pine-900),var(--fern-600) 60%,var(--sage-300))' }}>
-        <div style={{ position:'absolute', bottom:-44, left:'var(--web-page-px)', width:90, height:90, borderRadius:'50%', border:'4px solid var(--paper)', background:'var(--sage-300)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'2rem', fontWeight:700, color:'var(--pine-900)', boxShadow:'var(--shadow)' }}>P</div>
+    <div style={{ background: B.cream, ...figtree, minHeight: '100vh', paddingBottom: 72 }}>
+      {/* Banner */}
+      <div style={{ height: 200, background: 'linear-gradient(130deg, #1f4a32, #2E7D52 60%, #A6C98A)', position: 'relative' }}>
+        <div style={{ position: 'absolute', bottom: -46, left: 44, width: 94, height: 94, borderRadius: '50%', border: `4px solid ${B.cream}`, background: '#A6C98A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.2rem', fontWeight: 700, color: B.darkGreen, boxShadow: '0 6px 20px rgba(31,74,50,.2)' }}>P</div>
       </div>
-      <div style={{ padding:'58px var(--web-page-px) 20px', display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:16 }}>
+      {/* Identity row */}
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '64px 44px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
-            <h1 style={{ fontFamily:'var(--font-serif)', fontSize:'var(--text-xl)', fontWeight:500, color:'var(--ink)' }}>{user.name}</h1>
-            <TierBadge tier={user.tier||'grower'} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <h1 style={{ ...outfit, fontWeight: 800, fontSize: 28, color: B.darkText }}>{user.name}</h1>
+            <TierBadge tier={user.tier || 'grower'} />
           </div>
-          <p style={{ fontSize:'var(--text-sm)', color:'var(--text-subtle)' }}>Plant enthusiast · Bangalore, India · Member since Jan 2024</p>
+          <p style={{ fontSize: 15, color: B.softText }}>Plant enthusiast · Bangalore, India · Member since Jan 2024</p>
         </div>
-        <div style={{ display:'flex', gap:10 }}>
-          <Button variant="outline" size="sm">Edit Profile</Button>
-          <Button size="sm"><Icon name="plus" size={15} /> Add Listing</Button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button style={btnSecondary({ fontSize: 15, padding: '12px 22px' })}>Edit Profile</button>
+          <button style={btnGreen({ fontSize: 15, padding: '12px 22px' })}>+ Add Listing</button>
         </div>
       </div>
-      <div style={{ display:'flex', padding:'0 var(--web-page-px)', borderBottom:'2px solid var(--line)' }}>
-        {[['6','Listings'],['14','Swaps'],['4.9','Rating'],['8','Reviews']].map(([v,l],i) => (
-          <div key={l} style={{ padding:'12px 28px', textAlign:'center', borderRight:i<3?'1px solid var(--line)':'none' }}>
-            <div style={{ fontFamily:'var(--font-serif)', fontSize:'var(--text-xl)', fontWeight:400, color:'var(--ink)' }}>{v}</div>
-            <div style={{ fontSize:'var(--text-xs)', color:'var(--text-faint)', textTransform:'uppercase', letterSpacing:'var(--tracking-caps)', fontWeight:600, marginTop:2 }}>{l}</div>
+      {/* Stat cards */}
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '0 44px 28px', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        {stats.map(([v, l]) => (
+          <div key={l} style={{ background: B.white, border: `1px solid ${B.border}`, borderRadius: 20, padding: '20px 32px', textAlign: 'center', flex: '1 1 120px', boxShadow: B.cardShadow }}>
+            <div style={{ ...outfit, fontSize: 32, fontWeight: 800, color: B.darkText }}>{v}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: B.softText, textTransform: 'uppercase', letterSpacing: '.05em', marginTop: 4 }}>{l}</div>
           </div>
         ))}
       </div>
-      <div style={{ display:'flex', padding:'0 var(--web-page-px)', borderBottom:'2px solid var(--line)' }}>
-        {tabs.map(([id,label,count]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ background:'none', border:'none', cursor:'pointer', padding:'13px 22px', fontFamily:'var(--font-sans)', fontWeight:tab===id?600:400, fontSize:'var(--text-sm)', color:tab===id?'var(--pine-700)':'var(--text-subtle)', borderBottom:tab===id?'2px solid var(--fern-600)':'2px solid transparent', marginBottom:-2, display:'flex', alignItems:'center', gap:6 }}>
-            {label}
-            <span style={{ padding:'1px 7px', borderRadius:'var(--radius-badge)', background:tab===id?'var(--mint-100)':'var(--paper-raised)', color:tab===id?'var(--pine-700)':'var(--ink-faint)', fontSize:'var(--text-xs)', fontWeight:600 }}>{count}</span>
+      {/* Tab bar */}
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '0 44px', borderBottom: `2px solid ${B.border}`, display: 'flex', gap: 4 }}>
+        {tabs.map(([id, label, count]) => (
+          <button key={id} onClick={() => setTab(id)} style={{ ...figtree, background: 'none', border: 'none', cursor: 'pointer', padding: '14px 20px', fontWeight: tab === id ? 700 : 500, fontSize: 15, color: tab === id ? B.green : B.softText, borderBottom: tab === id ? `2px solid ${B.green}` : '2px solid transparent', marginBottom: -2 }}>
+            {label} <span style={{ marginLeft: 6, padding: '2px 8px', borderRadius: 999, background: tab === id ? B.lightYellow : B.border, color: tab === id ? '#8A6314' : B.softText, fontSize: 12, fontWeight: 700 }}>{count}</span>
           </button>
         ))}
       </div>
-      <div style={{ padding:'28px var(--web-page-px)' }}>
-        {tab==='listings' && <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:20 }}>{listings.map(l => <PlantCard key={l.id} image={l.image} title={l.title} status={l.status} plantType={l.plantType} distance={l.distance} rating={l.rating} lister={l.lister} onClick={() => onViewListing(l)} />)}</div>}
-        {tab==='wishlist' && <div style={{ display:'flex', flexDirection:'column', gap:10, maxWidth:600 }}>{wishlist.map(item => <div key={item} style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 18px', background:'var(--card)', border:'1px solid var(--line)', borderRadius:'var(--radius-card)' }}><Icon name="heart" size={16} color="var(--clay-600)" /><span style={{ fontFamily:'var(--font-serif)', fontSize:'var(--text-md)', color:'var(--ink)', flex:1 }}>{item}</span></div>)}</div>}
-        {tab==='swaps' && <div style={{ display:'flex', flexDirection:'column', gap:10, maxWidth:700 }}>{chats.map(c => <div key={c.id} style={{ display:'flex', alignItems:'center', gap:16, padding:'14px 18px', background:'var(--card)', border:'1px solid var(--line)', borderRadius:'var(--radius-card)' }}><div style={{ width:40, height:40, borderRadius:'50%', background:'var(--mint-200)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1rem', fontWeight:700, color:'var(--pine-700)', flexShrink:0 }}>{c.other.charAt(0)}</div><div style={{ flex:1 }}><div style={{ fontWeight:600, fontSize:'var(--text-sm)', color:'var(--ink)' }}>{c.listingTitle}</div><div style={{ fontSize:'var(--text-xs)', color:'var(--text-faint)', marginTop:2 }}>with {c.other}</div></div><Badge variant={c.state}>{c.state}</Badge></div>)}</div>}
-        {tab==='reviews' && <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:16 }}>{reviews.map((r,i) => <div key={i} style={{ padding:'18px', background:'var(--card)', border:'1px solid var(--line)', borderRadius:'var(--radius-card)' }}><div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}><div style={{ width:34, height:34, borderRadius:'50%', background:'var(--sage-300)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.85rem', fontWeight:700, color:'var(--pine-900)', flexShrink:0 }}>{r.from.charAt(0)}</div><div style={{ flex:1 }}><div style={{ fontWeight:600, fontSize:'var(--text-sm)', color:'var(--ink)' }}>{r.from}</div><div style={{ fontSize:'var(--text-xs)', color:'var(--ink-faint)' }}>{r.date}</div></div><StarRating value={r.rating} /></div><p style={{ fontSize:'var(--text-sm)', color:'var(--text-body)', lineHeight:'var(--leading-normal)', margin:0 }}>{r.text}</p></div>)}</div>}
+      {/* Tab content */}
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '32px 44px' }}>
+        {tab === 'listings' && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>{listings.map(l => <PlantCard key={l.id} image={l.image} title={l.title} status={l.status} plantType={l.plantType} distance={l.distance} rating={l.rating} lister={l.lister} onClick={() => onViewListing(l)} />)}</div>}
+        {tab === 'wishlist' && <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 600 }}>{wishlist.map(item => <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', background: B.white, border: `1px solid ${B.border}`, borderRadius: 16, boxShadow: B.cardShadow }}><span style={{ fontSize: 18 }}>❤️</span><span style={{ ...outfit, fontSize: 16, color: B.darkText, flex: 1 }}>{item}</span></div>)}</div>}
+        {tab === 'swaps' && <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 700 }}>{chats.map(c => <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: B.white, border: `1px solid ${B.border}`, borderRadius: 16, boxShadow: B.cardShadow }}><div style={{ width: 42, height: 42, borderRadius: '50%', background: '#ECF7EC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 700, color: B.darkGreen, flexShrink: 0 }}>{c.other.charAt(0)}</div><div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 15, color: B.darkText }}>{c.listingTitle}</div><div style={{ fontSize: 13, color: B.softText, marginTop: 2 }}>with {c.other}</div></div><Badge variant={c.state}>{c.state}</Badge></div>)}</div>}
+        {tab === 'reviews' && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>{reviews.map((r, i) => <div key={i} style={{ padding: '20px', background: B.white, border: `1px solid ${B.border}`, borderRadius: 20, boxShadow: B.cardShadow }}><div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}><div style={{ width: 36, height: 36, borderRadius: '50%', background: '#ECF7EC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.9rem', fontWeight: 700, color: B.darkGreen, flexShrink: 0 }}>{r.from.charAt(0)}</div><div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 14, color: B.darkText }}>{r.from}</div><div style={{ fontSize: 12, color: B.softText }}>{r.date}</div></div><StarRating value={r.rating} /></div><p style={{ fontSize: 14, color: B.softText, lineHeight: 1.6, margin: 0 }}>{r.text}</p></div>)}</div>}
       </div>
     </div>
   );
 }
 
-// ── App shell ──────────────────────────────────────────────────────────
+// ── App shell ──────────────────────────────────────────────────────────────
 
 function GardenSwapWebApp() {
   const DS = window.GardenSwapDesignSystem_0373cf || {};
-  const [page, setPage] = React.useState('browse');
+  const [page, setPage] = React.useState('home');
   const [listing, setListing] = React.useState(null);
-  const user = { name:'Priya Sharma', tier:'grower' };
+  const user = { name: 'Priya Sharma', tier: 'grower' };
 
   const navigate = (p, data) => {
     setPage(p);
     if (data && data.listing) setListing(data.listing);
-    const el = document.getElementById('gs-main');
-    if (el) el.scrollTop = 0;
+    window.scrollTo(0, 0);
   };
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', minHeight:'100vh', background:'var(--surface-page)' }}>
-      <Nav page={page} user={user} onNavigate={navigate} notifCount={2} />
-      <div id="gs-main" style={{ flex:1, overflowY:'auto' }}>
-        {(page==='browse'||page==='home') && <BrowseView DS={DS} onOpenListing={l => navigate('detail',{listing:l})} />}
-        {page==='detail' && <DetailView DS={DS} listing={listing} onBack={() => navigate('browse')} onViewProfile={() => navigate('profile')} />}
-        {(page==='profile'||page==='listings'||page==='swaps') && <ProfileView DS={DS} user={user} onViewListing={l => navigate('detail',{listing:l})} />}
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: B.cream }}>
+      <BloomNav page={page} user={user} onNavigate={navigate} notifCount={2} />
+      <div style={{ flex: 1 }}>
+        {page === 'home'    && <BloomHome onNavigate={navigate} DS={DS} />}
+        {page === 'browse'  && <BrowseView DS={DS} onOpenListing={l => navigate('detail', { listing: l })} />}
+        {page === 'detail'  && <DetailView DS={DS} listing={listing} onBack={() => navigate('browse')} onViewProfile={() => navigate('profile')} />}
+        {(page === 'profile' || page === 'listings' || page === 'swaps') && <ProfileView DS={DS} user={user} onViewListing={l => navigate('detail', { listing: l })} />}
       </div>
-      <Footer onNavigate={navigate} />
+      <BloomFooter onNavigate={navigate} />
     </div>
   );
 }

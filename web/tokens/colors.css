@@ -116,4 +116,14 @@
     --border:       var(--line);
     --border-input: var(--line-strong);
     --notif-dot:    var(--tomato-600);
+
+    /* ── Bloom palette ──────────────────────────────────────── */
+    --bloom-green:        #2E7D52;
+    --bloom-cream:        #FFFBF5;
+    --bloom-orange:       #DD7A2E;
+    --bloom-yellow:       #E9B949;
+    --bloom-light-yellow: #FBE6B0;
+    --bloom-dark-text:    #23302a;
+    --bloom-soft-text:    #46544a;
+    --bloom-border:       #E7DFC8;
 }
