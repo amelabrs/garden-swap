@@ -79,7 +79,7 @@ function BloomFooter({ onNavigate }) {
 
 function BloomHome({ onNavigate, DS, listings }) {
   const { PlantCard } = DS;
-  const featured = (listings || []).slice(0, 6);
+  const featured = listings || [];
   const heroImgs = [
     { src: './assets/plant-begonia.jpeg',   alt: 'Begonia',   rot: '-2deg'  },
     { src: './assets/plant-hibiscus.jpeg',  alt: 'Hibiscus',  rot: '1deg'   },
