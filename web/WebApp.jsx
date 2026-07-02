@@ -79,7 +79,11 @@ function BloomFooter({ onNavigate }) {
 
 function BloomHome({ onNavigate, DS, listings }) {
   const { PlantCard } = DS;
-  const featured = listings || [];
+  const all = listings || [];
+  const PER = 6;
+  const [pg, setPg] = React.useState(1);
+  const totalPages = Math.max(1, Math.ceil(all.length / PER));
+  const featured = all.slice((pg - 1) * PER, pg * PER);
   const heroImgs = [
     { src: './assets/plant-begonia.jpeg',   alt: 'Begonia',   rot: '-2deg'  },
     { src: './assets/plant-hibiscus.jpeg',  alt: 'Hibiscus',  rot: '1deg'   },
@@ -153,6 +157,13 @@ function BloomHome({ onNavigate, DS, listings }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
             {featured.map(l => <PlantCard key={l.id} image={l.image} title={l.title} status={l.status} plantType={l.plantType} rarity={l.rarity} distance={l.distance} lister={l.lister} rating={l.rating} onClick={() => onNavigate('browse')} />)}
           </div>
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 32 }}>
+              <button onClick={() => setPg(p => Math.max(1, p - 1))} disabled={pg <= 1} style={{ ...figtree, padding: '10px 24px', border: `1px solid ${B.border}`, borderRadius: 999, background: B.white, cursor: pg <= 1 ? 'default' : 'pointer', opacity: pg <= 1 ? .4 : 1, fontWeight: 600, fontSize: 15 }}>← Prev</button>
+              <span style={{ ...figtree, fontSize: 14, color: B.softText }}>{pg} / {totalPages}</span>
+              <button onClick={() => setPg(p => Math.min(totalPages, p + 1))} disabled={pg >= totalPages} style={{ ...figtree, padding: '10px 24px', border: `1px solid ${B.border}`, borderRadius: 999, background: B.white, cursor: pg >= totalPages ? 'default' : 'pointer', opacity: pg >= totalPages ? .4 : 1, fontWeight: 600, fontSize: 15 }}>Next →</button>
+            </div>
+          )}
         </div>
       )}
     </div>
